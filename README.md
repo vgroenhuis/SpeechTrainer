@@ -7,12 +7,13 @@ Everything you say is shown **visually**, in Dutch or English.
 
 ## What it does
 
-- **Explore sounds** – live view of your voice:
+- **Explore sounds** – live view of your voice; the last 10 seconds are kept, and *Stop & analyse* turns them
+  into a picture you can click (analyse that moment), hover and play back:
   - type of sound in colour: vowel, hiss (s, sh, f), buzz (z, v), burst (p, t, k), hum (m, n)
   - voice on/off (vocal folds) with pitch, loudness meter
   - scrolling spectrogram
   - vowel map: a dot shows where your tongue is (front/back, open/closed)
-- **Practise words** – a word is shown, you say it, and you get:
+- **Practise words** – short words and longer words (2–4 syllables, shown as ta·fel), you say it, and you get:
   - a score out of 100 (word recognised + sounds in the right order + vowel quality)
   - a ✓ / ~ / ✗ per sound, concrete tips ("open your mouth a bit more", "the k was very soft…")
   - your vowel on the vowel map next to the target
@@ -49,8 +50,11 @@ Double-click `start.bat` (needs Python), or run any static web server in this fo
 3. **Segments:** noise is split into bursts and hisses using position, duration and how the level develops
    (bursts start at full strength, hisses swell up). The burst place (p/t/k) comes from the release spectrum,
    and place feedback is only given when the classifier is confident.
-4. **Scoring:** the detected segments are weighted-aligned to the target sounds. The vowel is compared with
-   accent-aware formant prototypes (`data.js`), scaled to the speaker.
+4. **Noise filter:** sounds separated from the word by a pause, and segments that stay close to the background
+   noise or far below the loudest part of the word, are dropped (breath, clicks, room noise).
+5. **Scoring:** the detected segments are weighted-aligned to the target sounds. Every vowel is compared with
+   accent-aware formant prototypes (`data.js`), scaled to the speaker. In longer words, vowel-like sounds that
+   merge into one voiced stretch are split so each vowel is measured separately; ə and l/r/j/w are judged leniently.
 
 ## Test bench
 
@@ -72,10 +76,13 @@ The example recordings in `ref/` come from `python tools/make-reference-audio.py
 
 Results (room noise):
 
-| | consonants detected | p/t/k place | vowel identified | correct-word score |
-|---|---|---|---|---|
-| English | 96% | 76% | 57% | 79 |
-| Dutch | 96% | 73% | 51% | 81 |
+| | consonants detected | p/t/k place | vowels identified | correct-word score (all words) | longer words 2 / 3 / 4 syllables |
+|---|---|---|---|---|---|
+| English | 95% | 77% | 49% | 77 | 75 / 70 / 58 |
+| Dutch | 95% | 71% | 44% | 78 | 66 / 71 / 68 |
+
+(Scores here are from the sound analysis only; in the app the word recognition adds to them. Vowel identification
+counts every vowel of every word, including unstressed ones in longer words.)
 
 Known limits: unaspirated Dutch p/t/k at the start of a word are hard to see in the sound, so they are judged
 leniently ("~"). Neighbouring vowels (Dutch o/ɔ, i/ɪ/e) are hard to tell apart from a single measurement.

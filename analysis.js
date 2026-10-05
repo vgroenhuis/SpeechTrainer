@@ -29,10 +29,16 @@ const P = {
   burstOrHissMs: 130,      // ...and up to this long when it does not swell up like a hiss
   burstDecay: -7,          // dB (start minus end level); hisses grow louder (−17…−5), bursts do not (−6…+3)
   releaseMaxMs: 170,       // noise after a closure that follows a vowel: a released p/t/k (longer: p/t/k + hiss)
-  noGapBurstMs: 100,       // noise straight after the vowel, no closure: burst if this short, else a hiss
+  noGapBurstMs: 40,        // noise straight after voicing without a closure is a hiss (f in "tafel"), unless very short
   tailBelowPeak: 20,       // dB: fading voicing at the end of a voiced stretch is closure, not a sound
   leadBelowPeak: 25,
   closureHumBelow: 10,     // dB below the vowel: a hum this faint right before a burst is closure voicing
+  wordGapMs: 220,          // a pause longer than this separates words (closures inside a word are ≤ ~150 ms)
+  strayBelow: 12,          // dB below the loudest segment: noises outside the word softer than this are dropped
+  weakNoiseBelow: 38,      // dB: hiss/burst segments that stay this far below the loudest segment are dropped
+  weakVoiceBelow: 22,      // dB: same for voiced segments (real vowels/hums: ≥ −22 dB in 99% of cases)
+  noiseAboveFloor: 10,     // dB: hiss/burst segments must reach this far above the background noise
+  voiceAboveFloor: 15,     // dB: voiced segments too (test/explore-levels.js)
   weakBurstClick: -2,      // dB: onset click strength that may be a hidden unaspirated p/t/k
   guessZ: 0.4, guessS: 0.8, guessSCen: 4900, guessShHigh: 0.95, guessShCen: 3300, guessXCen: 2200,   // sound guesses
   placeMargin: 1.0        // how much closer the best place must be than the next before giving place feedback
@@ -320,7 +326,7 @@ function onsetInfo(x, frameIdx) {
   return { click: 10 * Math.log10((clickPeak + 1e-12) / (later / Math.max(1, n) + 1e-12)), riseMs: Math.max(0, o90 - o10) };
 }
 
-function segment(frames, labels, sig) {
+function segment(frames, labels, sig, free) {
   const lab = labels.slice();
   let r = runs(lab);
   // a) 1–2 frame noise inside voicing is just roughness
@@ -379,9 +385,16 @@ function segment(frames, labels, sig) {
       s.rise = onsetRise(frames, x.a);
       const n = fr.length, head = Math.max(...fr.slice(0, 2).map(f => f.db)), tail = fr.slice(-2).reduce((u, f) => u + f.db, 0) / Math.min(2, n);
       s.decay = head - tail;   // bursts start at full strength, hisses swell up
-      const afterVoice = segs.some(q => isVoiced(q.c));
+      // is there voicing earlier in the same word? (a pause longer than wordGapMs starts a new word)
+      let afterVoice = false;
+      for (let q = segs.length - 1, from = x.a; q >= 0; q--) {
+        if ((from - segs[q].b - 1) * FRAME_MS > P.wordGapMs) break;
+        if (isVoiced(segs[q].c)) { afterVoice = true; break; }
+        from = segs[q].a;
+      }
       let burst, split = false;
-      if (!afterVoice) burst = s.dur <= P.burstMaxMs || (s.dur <= P.burstOrHissMs && s.decay >= P.burstDecay);
+      // (a long, very sharp hiss is an s even when it hardly swells; a t puff is shorter)
+      if (!afterVoice) burst = s.dur <= P.burstMaxMs || (s.dur <= P.burstOrHissMs && s.decay >= P.burstDecay && !(s.dur > 100 && s.cen > 4000));
       else if (s.afterGap) { burst = true; split = s.dur > P.releaseMaxMs; }   // closure, then release
       else burst = s.dur <= P.noGapBurstMs;
       if (split) {
@@ -410,27 +423,55 @@ function segment(frames, labels, sig) {
     const m = out[out.length - 1];
     if (m && m.c === s.c && s.c !== 'P') { m.b = s.b; m.dur += s.dur; } else out.push(s);
   }
-  return out;
+  return dropNoise(frames, out, free);
+}
+/* Soft extra "sounds" are usually breath, clicks or room noise:
+   - the word is the stretch around the loudest segment without pauses longer than wordGapMs;
+     anything outside it is dropped unless it is loud (a second word, a cough);
+   - inside the word, segments that never come near the loudest level are dropped. */
+function dropNoise(frames, segs, free) {
+  if (!segs.length) return segs;
+  const floor = levels(frames).floor;
+  segs.forEach(s => { let m = -Infinity; for (let k = s.a; k <= s.b; k++) m = Math.max(m, frames[k].db); s.peak = m; });
+  const top = Math.max(...segs.map(s => s.peak));
+  const core = segs.findIndex(s => s.peak === top), gap = (u, w) => (w.a - u.b - 1) * FRAME_MS;
+  let lo = core, hi = core;
+  while (lo > 0 && gap(segs[lo - 1], segs[lo]) <= P.wordGapMs) lo--;
+  while (hi < segs.length - 1 && gap(segs[hi], segs[hi + 1]) <= P.wordGapMs) hi++;
+  return segs.filter((s, i) => {
+    s.rel = s.peak - top;
+    if (!free && (i < lo || i > hi) && s.rel < -P.strayBelow) return false;   // free speech (explore): no single word
+    const noise = s.c === 'F' || s.c === 'P';
+    if (s.peak - floor < (noise ? P.noiseAboveFloor : P.voiceAboveFloor)) return false;
+    return free || s.rel >= -(noise ? P.weakNoiseBelow : P.weakVoiceBelow);
+  });
 }
 
-/* Full analysis of a recording (any sample rate). */
-function analyzeRecording(samples, rate) {
+/* Full analysis of a recording (any sample rate). free: free speech of several seconds (explore mode),
+   not a single word — then sounds far from the loudest one are kept. */
+function analyzeRecording(samples, rate, free) {
   const x = rate === FS ? samples : to16k(samples, rate);
   const frames = analyzeSamples(x);
   const lv = levels(frames);
   const labels = frames.map(f => labelFrame(f, lv.floor, lv.peak));
-  return { frames, labels, levels: lv, segs: segment(frames, labels, x) };
+  return { frames, labels, levels: lv, segs: segment(frames, labels, x, !!free) };
 }
 
 /* ---------------- Scoring ---------------- */
-const clsOf = p => p.includes('/') || p in D.VOW.en || p in D.VOW.nl ? 'V' : (D.CCLS[p] || 'B');
-/* How well a detected segment class fits a target class (0 = not at all). The vowel weighs most, so it is never
-   given up for a soft match; b/d/g may show up as a burst or as pre-voicing (hum). */
+/* Target sound class. V vowel, W weak vowel (ə), F/Z/P/N consonants that are checked, B/L/H soft (judged leniently). */
+const clsOf = p => p === 'ə' ? 'W' : p.includes('/') || p in D.VOW.en || p in D.VOW.nl ? 'V' : (D.CCLS[p] || 'B');
+const SOFT = new Set(['B', 'L', 'H', 'W']);
+/* How well a detected segment class fits a target class (0 = not at all). Full vowels weigh most, so they are never
+   given up for a soft match; b/d/g may show up as a burst or as pre-voicing (hum); l/r/j/w sound like a vowel or hum. */
 function fit(t, d) {
   if (t === d) return t === 'V' ? 1.5 : 1;
+  if (t === 'W' && d === 'V') return 0.9;
   if ((t === 'F' || t === 'Z') && (d === 'F' || d === 'Z')) return 0.8;
   if (t === 'B' && (d === 'P' || d === 'N')) return 0.4;
   if (t === 'Z' && d === 'N') return 0.5;
+  if (t === 'L' && (d === 'V' || d === 'N')) return 0.3;
+  if (t === 'H' && d === 'F') return 0.4;
+  if (t === 'P' && d === 'F') return 0.3;   // p/t/k released without a full closure (e.g. t between vowels)
   return 0;
 }
 function align(target, det) {
@@ -525,6 +566,27 @@ function scoreAttempt(word, an, opts) {
   else if (an.levels.peak < -38) issues.push({ k: 'quiet' });
 
   const match = align(target, segs), marks = new Array(target.length).fill('');
+  // In longer words neighbouring vowel-like sounds often merge into one voiced stretch ("ele" in elephant).
+  // Unmatched vowels, ə, l/r/j/w and hums next to a matched vowel are assigned to that stretch, which is then
+  // split evenly so every vowel is measured in its own part.
+  const part = new Array(target.length).fill(null);   // { a, b } frame range for vowels inside a shared stretch
+  const host = new Array(target.length).fill(-1);     // segment index an unmatched sound was merged into
+  const VOC = new Set(['V', 'W', 'L', 'N']);
+  target.forEach((t, k) => {
+    if (match[k] >= 0 || !VOC.has(t.c)) return;
+    let p = k - 1; while (p >= 0 && match[p] < 0 && VOC.has(target[p].c)) p--;
+    let n = k + 1; while (n < target.length && match[n] < 0 && VOC.has(target[n].c)) n++;
+    const sp = p >= 0 && match[p] >= 0 && segs[match[p]].c === 'V' ? match[p] : -1;
+    const sn = n < target.length && match[n] >= 0 && segs[match[n]].c === 'V' ? match[n] : -1;
+    host[k] = sp >= 0 ? sp : sn;
+  });
+  segs.forEach((s, j) => {
+    if (s.c !== 'V') return;
+    const grp = target.map((t, k) => k).filter(k => match[k] === j || host[k] === j);
+    if (grp.length < 2) return;
+    const n = s.b - s.a + 1;
+    grp.forEach((k, g) => { part[k] = { a: s.a + Math.floor(n * g / grp.length), b: s.a + Math.floor(n * (g + 1) / grp.length) - 1 }; });
+  });
   let credit = 0, required = 0;
   target.forEach((t, k) => {
     const j = match[k], s = j >= 0 ? segs[j] : null;
@@ -532,8 +594,10 @@ function scoreAttempt(word, an, opts) {
       if (s && k === 0 && s.dur >= 50 && s.vfrac < 0.3) { marks[k] = '~'; issues.push({ k: 'aspirated', p: t.p }); }
       return;
     }
+    if (SOFT.has(t.c)) { if ((s || host[k] >= 0) && t.c === 'W') marks[k] = '✓'; return; }   // l, r, j, w, h and ə: not judged
     if (t.c === 'V') return;   // scored separately
     required++;
+    if (!s && t.c === 'N' && host[k] >= 0) { marks[k] = '~'; credit += 0.6; return; }   // hum blended into the vowel
     if (!s && t.c === 'P') {
       // unaspirated (Dutch) p/t/k: the release can hide in the vowel onset; unreleased final p/t/k: only a closure.
       // Give the benefit of the doubt when there is an abrupt, click-like onset or a closure, and say it was weak.
@@ -546,6 +610,7 @@ function scoreAttempt(word, an, opts) {
     let c = 1;
     if (t.c === 'Z' && s.vfrac < 0.35 && s.c !== 'Z') { c = 0.5; issues.push({ k: 'voicedNeed', p: t.p }); }
     if (t.c === 'Z' && s.c === 'N') c = 0.7;   // voice but hardly any hiss
+    if (t.c === 'P' && s.c === 'F') c = 0.6;   // released without a clear closure
     if (t.c === 'F' && (s.c === 'Z' || s.vfrac > 0.6)) { c = 0.5; issues.push({ k: 'voicelessNeed', p: t.p }); }
     if (t.c === 'P' && s.place && s.place !== D.PLACE[t.p]) {
       // penalty grows with how much closer the burst is to another place than to the intended one
@@ -561,31 +626,48 @@ function scoreAttempt(word, an, opts) {
   if (extras > 0 && spoke) issues.push({ k: 'extra', n: extras });
   const seq = !spoke ? 0 : required ? Math.max(0, Math.round(100 * credit / required - Math.min(30, 10 * extras))) : Math.max(0, 100 - Math.min(30, 10 * extras));
 
-  let vowel = null, meas = null, near = null;
-  const tv = target.find(t => t.c === 'V');
-  if (tv) {
-    meas = measureVowel(frames, segs);
-    const alts = tv.p.split('/');
-    if (meas) {
-      const [f1, f2] = meas, { d: bd, t1, t2 } = vowelMatch(lang, tv.p, f1, f2, scale);
-      near = nearestVowel(lang, f1, f2, scale);
-      // absolute closeness, but never punish a vowel that is clearly closest to the target
-      let v = 100 * Math.max(0, Math.min(1, 1 - (bd - 0.12) / 0.4));
-      if (alts.includes(near.v)) v = Math.max(v, 80);
-      vowel = Math.round(v);
-      if (vowel >= 75) { marks[tv.i] = '✓'; issues.push({ k: 'vowelGood', p: alts[0] }); }
-      else {
-        marks[tv.i] = vowel >= 45 ? '~' : '✗';
-        if (!alts.includes(near.v)) issues.push({ k: 'vowelLike', p: alts[0], near: near.v });
-        if (f1 / t1 > 1.15) issues.push({ k: 'vClose' }); else if (f1 / t1 < 0.87) issues.push({ k: 'vOpen' });
-        if (f2 / t2 > 1.15) issues.push({ k: 'vBack' }); else if (f2 / t2 < 0.87) issues.push({ k: 'vFront' });
-      }
-    } else if (spoke) { marks[tv.i] = '✗'; issues.push({ k: 'vNone' }); vowel = segs.some(s => s.c === 'V') ? 40 : 0; }
-  }
+  // every full vowel is measured in the segment it was aligned to
+  const vowels = [];
+  target.forEach((t, k) => {
+    if (t.c !== 'V') return;
+    const alts = t.p.split('/'), j = match[k] >= 0 ? match[k] : host[k], s = j >= 0 ? segs[j] : null;
+    if (!s || s.c !== 'V') {
+      marks[k] = '✗';
+      if (spoke) issues.push({ k: 'missing', p: alts[0] });
+      vowels.push({ p: t.p, i: k, score: 0 }); return;
+    }
+    const m = segFormants(frames, part[k] || s, part[k] ? 2 : 3);
+    if (!m) { marks[k] = '~'; vowels.push({ p: t.p, i: k, score: 50 }); if (!issues.some(q => q.k === 'vNone')) issues.push({ k: 'vNone' }); return; }
+    const [f1, f2] = m, { d: bd, t1, t2 } = vowelMatch(lang, t.p, f1, f2, scale), near = nearestVowel(lang, f1, f2, scale).v;
+    // absolute closeness, but never punish a vowel that is clearly closest to the target
+    let v = 100 * Math.max(0, Math.min(1, 1 - (bd - 0.12) / 0.4));
+    if (alts.includes(near)) v = Math.max(v, 80);
+    v = Math.round(v);
+    if (v >= 75) { marks[k] = '✓'; issues.push({ k: 'vowelGood', p: alts[0] }); }
+    else {
+      marks[k] = v >= 45 ? '~' : '✗';
+      if (!alts.includes(near)) issues.push({ k: 'vowelLike', p: alts[0], near });
+      if (f1 / t1 > 1.15) issues.push({ k: 'vClose', p: alts[0] }); else if (f1 / t1 < 0.87) issues.push({ k: 'vOpen', p: alts[0] });
+      if (f2 / t2 > 1.15) issues.push({ k: 'vBack', p: alts[0] }); else if (f2 / t2 < 0.87) issues.push({ k: 'vFront', p: alts[0] });
+    }
+    vowels.push({ p: t.p, i: k, score: v, meas: m, t1, t2, near, dur: part[k] ? (part[k].b - part[k].a + 1) * FRAME_MS : s.dur });
+  });
+  const vowel = vowels.length ? Math.round(vowels.reduce((u, v) => u + v.score, 0) / vowels.length) : null;
+  // the longest measured vowel (usually the stressed one) is used for calibration and the vowel map
+  const main = vowels.filter(v => v.meas).sort((a, b) => b.dur - a.dur)[0];
   const acoustic = vowel == null ? seq : Math.round(0.55 * seq + 0.45 * vowel);
   let total = opts.recScore == null ? acoustic : Math.round(0.5 * opts.recScore + 0.5 * acoustic);
   if (!spoke) total = 0;
-  return { total, rec: opts.recScore, seq, vowel, acoustic, marks, issues, meas, near: near && near.v, scale, segs };
+  return { total, rec: opts.recScore, seq, vowel, acoustic, marks, issues, vowels,
+           meas: main ? main.meas : null, measTarget: main ? main.p : null, near: main ? main.near : null, scale, segs };
+}
+/* median F1/F2 of the middle half of a vowel segment (null if too few measurements) */
+function segFormants(frames, s, minN = 3) {
+  const n = s.b - s.a + 1, from = s.a + Math.floor(n * 0.25), to = s.a + Math.ceil(n * 0.75);
+  const fm = frames.slice(from, Math.max(to, from + 1)).filter(f => f.fm).map(f => f.fm);
+  if (fm.length < minN) return null;
+  const med = k => fm.map(x => x[k]).sort((a, b) => a - b)[fm.length >> 1];
+  return [med(0), med(1)];
 }
 
 const A = { FS, HOP, FRAME_MS, P, Resampler, to16k, Stream, analyzeSamples, labelFrame, levels, LiveLabeler,

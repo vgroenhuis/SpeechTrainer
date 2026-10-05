@@ -81,6 +81,7 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
 .ebar .meter{height:14px}
 .ebar .meter>div{background:var(--accent)}
 #picSwitch button{padding:5px 12px;font-size:15px}
+.sylsep{align-self:center;font-size:30px;font-weight:800;color:var(--muted);margin:0 2px}
 @media (max-width:900px){.now,.viz,.result,.details{grid-template-columns:1fr}#word{font-size:60px}}
 </style>
 </head>
@@ -224,13 +225,13 @@ const T = {
   en: {
     title:'Speech Trainer', tabExplore:'Explore sounds', tabWords:'Practise words', language:'Language', voiceType:'Voice',
     vAuto:'Automatic', vLow:'Low (man)', vMid:'Medium (woman)', vHigh:'High (child)',
-    micStart:'🎤 Start microphone', micStop:'⏹ Stop microphone',
-    exploreHelp:'Make a sound and watch what happens. Colours show the type of sound.',
+    micStart:'🎤 Start microphone', micStop:'⏹ Stop & analyse', analysingBtn:'Analysing…',
+    exploreHelp:'Make a sound and watch what happens. Colours show the type of sound. The last 10 seconds are kept: press Stop to analyse them.',
     nowHearing:'Now hearing', voiceCap:'Voice (vocal folds)', loudCap:'Loudness',
     voiceHint:'Tip: put your fingers on your throat — you feel vibration when the voice is ON.',
     voiceOn:'🟢 Voice ON', voiceOff:'⚪ Voice OFF', pitch:'Pitch', tooQuiet:'Very quiet', good:'Good', loud:'Loud',
     category:'Practise', prev:'◀ Previous', next:'Next ▶', listen:'🔊 Listen', speak:'🎤 Say it', stop:'⏹ Stop',
-    play:'▶ Play recording', playSlow:'🐢 Slow', playStop:'⏹ Stop', playHint:'Tip: click in the picture to play from that point.',
+    play:'▶ Play recording', playSlow:'🐢 Slow', playStop:'⏹ Stop', playHint:'Click in the picture to analyse that moment (see Sound details); ▶ then plays from there.',
     exampleVoice:'Example voice', exMale:'Man', exFemale:'Woman', picExample:'Example', picAttempt:'My attempt', showFm:'F1/F2 lines',
     exampleLoading:'Loading the example…', exampleShown:'This is the example. Look at the picture and the vowel map, then press “Say it”.',
     exampleMarker:'◆ example', yourMarker:'★ you', liveMarker:'● now',
@@ -249,7 +250,7 @@ const T = {
     specTitle:'Sound picture (spectrogram) — low pitch at the bottom, high at the top',
     vowelTitle:'Vowel map — where is your tongue?',
     vowelLegend:'← front of mouth · back of mouth → | top: mouth closed · bottom: mouth open',
-    cls:{V:'Vowel',F:'Hiss (voiceless)',Z:'Buzz (voiced hiss)',P:'Burst',N:'Hum',S:'Silence',B:'Soft burst'},
+    cls:{V:'Vowel',F:'Hiss (voiceless)',Z:'Buzz (voiced hiss)',P:'Burst',N:'Hum',S:'Silence',B:'Soft burst',W:'Weak vowel',L:'Vowel-like',H:'Breath'},
     clsSub:{V:'voice on, mouth open',F:'air only, no voice',Z:'air + voice',P:'short pop of air',N:'air through the nose',S:'',B:''},
     sHiss:'sharp “s”', shHiss:'“sh” or “f”', burstSub:'p / t / k', humSub:'m / n / ng', buzzSub:'z / v', shF:'sh/f',
     vowelLike:'sounds like', guide:[
@@ -258,7 +259,7 @@ const T = {
       ['Z','Buzz','Hiss + voice ON: z, v. Noise high up plus stripes low down.'],
       ['P','Burst','Lips or tongue close, then release a puff: p, t, k. A short vertical line.'],
       ['N','Hum','Mouth closed, air through the nose, voice ON: m, n, ng. Energy only at the bottom.']],
-    cats:{all:'All words',vowel:'Vowels',hiss:'Hiss sounds (s, sh, f, z)',burst:'Bursts (p, t, k)',hum:'Hums (m, n)'},
+    cats:{all:'All words',vowel:'Vowels',hiss:'Hiss sounds (s, sh, f, z)',burst:'Bursts (p, t, k)',hum:'Hums (m, n)',long:'Longer words (2–4 syllables)'},
     best:'Best', attempts:'attempts',
     ready:'Press “Say it”, then say the word clearly.', listening:'🎤 Listening… say the word', analysing:'Analysing…',
     noMic:'Microphone not available. Allow microphone access in the browser.',
@@ -299,13 +300,13 @@ const T = {
   nl: {
     title:'Spraaktrainer', tabExplore:'Klanken verkennen', tabWords:'Woorden oefenen', language:'Taal', voiceType:'Stem',
     vAuto:'Automatisch', vLow:'Laag (man)', vMid:'Middel (vrouw)', vHigh:'Hoog (kind)',
-    micStart:'🎤 Microfoon aan', micStop:'⏹ Microfoon uit',
-    exploreHelp:'Maak een klank en kijk wat er gebeurt. De kleuren laten het soort klank zien.',
+    micStart:'🎤 Microfoon aan', micStop:'⏹ Stop & analyseer', analysingBtn:'Analyseren…',
+    exploreHelp:'Maak een klank en kijk wat er gebeurt. De kleuren laten het soort klank zien. De laatste 10 seconden worden bewaard: druk op Stop om ze te analyseren.',
     nowHearing:'Nu hoor ik', voiceCap:'Stem (stembanden)', loudCap:'Luidheid',
     voiceHint:'Tip: leg je vingers op je keel — je voelt trilling als de stem AAN is.',
     voiceOn:'🟢 Stem AAN', voiceOff:'⚪ Stem UIT', pitch:'Toonhoogte', tooQuiet:'Erg zacht', good:'Goed', loud:'Hard',
     category:'Oefenen', prev:'◀ Vorige', next:'Volgende ▶', listen:'🔊 Luister', speak:'🎤 Zeg het', stop:'⏹ Stop',
-    play:'▶ Opname afspelen', playSlow:'🐢 Langzaam', playStop:'⏹ Stop', playHint:'Tip: klik in het beeld om vanaf dat punt af te spelen.',
+    play:'▶ Opname afspelen', playSlow:'🐢 Langzaam', playStop:'⏹ Stop', playHint:'Klik in het beeld om dat moment te analyseren (zie Klankdetails); ▶ speelt dan vanaf daar.',
     exampleVoice:'Voorbeeldstem', exMale:'Man', exFemale:'Vrouw', picExample:'Voorbeeld', picAttempt:'Mijn poging', showFm:'F1/F2-lijnen',
     exampleLoading:'Voorbeeld laden…', exampleShown:'Dit is het voorbeeld. Bekijk het beeld en de klinkerkaart en druk dan op “Zeg het”.',
     exampleMarker:'◆ voorbeeld', yourMarker:'★ jij', liveMarker:'● nu',
@@ -324,7 +325,7 @@ const T = {
     specTitle:'Klankbeeld (spectrogram) — lage tonen onder, hoge tonen boven',
     vowelTitle:'Klinkerkaart — waar is je tong?',
     vowelLegend:'← voor in de mond · achter in de mond → | boven: mond dicht · onder: mond open',
-    cls:{V:'Klinker',F:'Sis (stemloos)',Z:'Zoem (stemhebbend)',P:'Plof',N:'Neusklank',S:'Stilte',B:'Zachte plof'},
+    cls:{V:'Klinker',F:'Sis (stemloos)',Z:'Zoem (stemhebbend)',P:'Plof',N:'Neusklank',S:'Stilte',B:'Zachte plof',W:'Zwakke klinker',L:'Klinkerachtig',H:'Ademklank'},
     clsSub:{V:'stem aan, mond open',F:'alleen lucht, geen stem',Z:'lucht + stem',P:'kort luchtstootje',N:'lucht door de neus',S:'',B:''},
     sHiss:'scherpe “s”', shHiss:'“sj” of “f”', burstSub:'p / t / k', humSub:'m / n / ng', buzzSub:'z / v', shF:'sj/f',
     vowelLike:'lijkt op', guide:[
@@ -333,7 +334,7 @@ const T = {
       ['Z','Zoem','Sis + stem AAN: z, v. Ruis hoog plus strepen onderin.'],
       ['P','Plof','Lippen of tong dicht, dan een luchtstootje: p, t, k. Een korte verticale streep.'],
       ['N','Neusklank','Mond dicht, lucht door de neus, stem AAN: m, n, ng. Alleen energie onderin.']],
-    cats:{all:'Alle woorden',vowel:'Klinkers',hiss:'Sisklanken (s, f, z, v)',burst:'Plofklanken (p, t, k)',hum:'Neusklanken (m, n)'},
+    cats:{all:'Alle woorden',vowel:'Klinkers',hiss:'Sisklanken (s, f, z, v)',burst:'Plofklanken (p, t, k)',hum:'Neusklanken (m, n)',long:'Langere woorden (2–4 lettergrepen)'},
     best:'Beste', attempts:'pogingen',
     ready:'Druk op “Zeg het” en zeg het woord duidelijk.', listening:'🎤 Ik luister… zeg het woord', analysing:'Bezig met analyseren…',
     noMic:'Microfoon niet beschikbaar. Geef de browser toegang tot de microfoon.',
@@ -372,7 +373,7 @@ const T = {
     stars:['Blijf oefenen!','Bijna','Goed','Heel goed','Uitstekend!']
   }
 };
-const COL = { V:'#4f8ef7', F:'#f5a524', Z:'#c58af9', P:'#f0524f', N:'#22c08a', S:'#3a4560', B:'#8f9bb3' };
+const COL = { V:'#4f8ef7', F:'#f5a524', Z:'#c58af9', P:'#f0524f', N:'#22c08a', S:'#3a4560', B:'#8f9bb3', W:'#93b8f5', L:'#7fd3c0', H:'#d9c38f' };
 
 /* ================= State ================= */
 const store = {
@@ -389,6 +390,7 @@ let live = false;       // analysing + drawing
 let recording = null;   // current word attempt
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const PRE = A.FS * 0.4, ring = new Float32Array(PRE); let ringPos = 0;   // 0.4 s of audio before "Say it"
+const EXN = A.FS * 10, exBuf = new Float32Array(EXN); let exPos = 0, exFill = 0;   // last 10 s in explore mode
 
 /* Vowel scale: learned from earlier attempts when "Automatic" (fallback: estimated from pitch per attempt). */
 function calib() { return store.get('st_calib', []); }
@@ -456,6 +458,10 @@ async function ensureMic() {
   labeler = new A.LiveLabeler();
   stream16.onSamples = x => {
     for (let i = 0; i < x.length; i++) { ring[ringPos] = x[i]; ringPos = (ringPos + 1) % PRE; }
+    if (mode === 'explore' && micOn) {
+      for (let i = 0; i < x.length; i++) { exBuf[exPos] = x[i]; exPos = (exPos + 1) % EXN; }
+      exFill = Math.min(EXN, exFill + x.length);
+    }
     if (recording && !recording.finishing) recording.chunks.push(x);
   };
   try {
@@ -557,10 +563,11 @@ function freqLabels(g) {
 function clearSpec() { sctx.fillStyle = '#000'; sctx.fillRect(0, 0, SW, spec.height); freqLabels(sctx); }
 
 /* ---------- Recordings (example + attempt): static picture, playback marker, hover ---------- */
-const pics = { example: null, attempt: null };
+const pics = { example: null, attempt: null, explore: null };
 let shown = null;    // the picture on screen
 let player = null;   // { src, t0, from, rate }
 let hoverIdx = null; // frame under the mouse
+let pinIdx = null;   // frame that was clicked (analysed in Sound details; playback starts there)
 /* x: 16 kHz samples, an: analyzeRecording result, scale: vocal-tract scale of that voice (for vowel guesses) */
 function makePic(x, an, kind, scale) {
   const fr = an.frames, segs = an.segs;
@@ -605,16 +612,16 @@ function paintPic(pic) {
   freqLabels(g);
 }
 function showPic(kind) {
-  stopPlayback();
+  stopPlayback(); pinIdx = null; hoverIdx = null;
   shown = pics[kind] || null;
   if (shown) sctx.drawImage(shown.img, 0, 0);
   $('#playRow').classList.toggle('hidden', !shown);
-  $('#picSwitch').classList.toggle('hidden', !(pics.example && pics.attempt));
+  $('#picSwitch').classList.toggle('hidden', !(pics.example && pics.attempt) || kind === 'explore');
   $('#picExample').classList.toggle('on', kind === 'example'); $('#picAttempt').classList.toggle('on', kind === 'attempt');
 }
 function forgetRecording(all) {
-  stopPlayback(); shown = null; pics.attempt = null;
-  if (all) { pics.example = null; chartExample = null; }
+  stopPlayback(); shown = null; pinIdx = null; hoverIdx = null; pics.attempt = null;
+  if (all) { pics.example = null; pics.explore = null; chartExample = []; }
   $('#playRow').classList.add('hidden'); $('#picSwitch').classList.add('hidden');
 }
 const sampleToX = n => ((n - 440) / A.HOP - shown.a + 0.5) * shown.colW;
@@ -624,10 +631,14 @@ function stopPlayback() {
   $('#playBtn').textContent = L.play; $('#slowBtn').textContent = L.playSlow;
   if (shown && !live) sctx.drawImage(shown.img, 0, 0);
 }
+/* ▶ / 🐢: start from the clicked point (or the beginning); pressing again stops */
+function togglePlay(rate) {
+  if (player && player.rate === rate) return stopPlayback();
+  play(rate, pinIdx != null ? 440 + pinIdx * A.HOP - A.HOP / 2 : null);
+}
 async function play(rate, fromSample) {
   if (!shown) return;
-  const was = player && player.rate === rate && fromSample == null;
-  stopPlayback(); if (was) return;   // second press = stop
+  stopPlayback();
   await ensureCtx();
   const from = fromSample == null ? shown.s0 : Math.max(0, Math.round(fromSample));
   const data = shown.x.subarray(from), buf = actx.createBuffer(1, data.length, A.FS);
@@ -645,10 +656,14 @@ function markerFrame() {
   if (sampleToX(n) > SW) { stopPlayback(); return null; }
   return Math.round((n - 440) / A.HOP);
 }
-function drawCursor(i, colour) {
+/* redraw the picture with vertical lines: [[frame, colour], …] */
+function drawCursors(list) {
   sctx.drawImage(shown.img, 0, 0);
-  const x = (i - shown.a + 0.5) * shown.colW;
-  sctx.fillStyle = colour; sctx.fillRect(x - 1, 0, 3, spec.height);
+  for (const [i, colour] of list) {
+    if (i == null) continue;
+    const x = (i - shown.a + 0.5) * shown.colW;
+    sctx.fillStyle = colour; sctx.fillRect(x - 1, 0, 3, spec.height);
+  }
 }
 /* vowel-map trail from the recording around frame i (formants of the example are shifted to your voice) */
 function picTrail(i, now) {
@@ -659,32 +674,41 @@ function picTrail(i, now) {
   }
   return t;
 }
-$('#playBtn').onclick = () => play(1);
-$('#slowBtn').onclick = () => play(0.5);
+$('#playBtn').onclick = () => togglePlay(1);
+$('#slowBtn').onclick = () => togglePlay(0.5);
 $('#picExample').onclick = () => showPic('example');
 $('#picAttempt').onclick = () => showPic('attempt');
 $('#showFm').onchange = () => { for (const k in pics) if (pics[k]) paintPic(pics[k]); if (shown && !live) sctx.drawImage(shown.img, 0, 0); };
 spec.addEventListener('click', e => {
   if (!shown || live) return;
-  const r = spec.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * SW;
-  play(1, 440 + (x / shown.colW + shown.a - 0.5) * A.HOP);
+  const r = spec.getBoundingClientRect();
+  stopPlayback();
+  pinIdx = xToFrame((e.clientX - r.left) / r.width * SW);
 });
 spec.addEventListener('mousemove', e => {
   if (!shown || live) return;
   const r = spec.getBoundingClientRect();
   hoverIdx = xToFrame((e.clientX - r.left) / r.width * SW);
 });
-spec.addEventListener('mouseleave', () => { hoverIdx = null; if (shown && !live && !player) sctx.drawImage(shown.img, 0, 0); });
+spec.addEventListener('mouseleave', () => { hoverIdx = null; });
 
+const PIN = '#ffd23f';
+let lastDrawKey = '';
 function draw(now) {
   requestAnimationFrame(draw);
   if (live || pending.length) drawColumns();
   let detail = null, chart = live;
   const mi = markerFrame();
-  if (mi != null) { drawCursor(mi, '#ffffff'); trail = picTrail(mi, now); detail = picDetail(mi); chart = true; }
-  else if (hoverIdx != null && shown && !live) { drawCursor(hoverIdx, '#ffffff88'); trail = picTrail(hoverIdx, now); detail = picDetail(hoverIdx); chart = true; }
+  // which moment to analyse: playback marker > mouse > clicked point > live microphone
+  const at = mi != null ? mi : (!live && shown) ? (hoverIdx != null ? hoverIdx : pinIdx) : null;
+  if (at != null) {
+    const key = `${mi}|${hoverIdx}|${pinIdx}`;
+    if (key !== lastDrawKey) { drawCursors([[pinIdx, PIN], [hoverIdx, '#ffffff88'], [mi, '#ffffff']]); lastDrawKey = key; }
+    trail = picTrail(at, now); detail = picDetail(at); chart = true;
+  }
   else if (live && latest) detail = { f: latest.f, c: latest.drawC, guess: liveGuess(latest), t: null };
   else if (trail.length && !live) { trail = []; chart = true; }
+  if (at == null && lastDrawKey) { if (shown && !live) sctx.drawImage(shown.img, 0, 0); lastDrawKey = ''; }   // remove old cursor lines
   while (live && trail.length && now - trail[0].t > 1500) trail.shift();
   if (chart) drawVowelChart(now);
   if (detail) showDetails(detail);
@@ -782,7 +806,7 @@ function vpos(f1, f2) {
   const y = VM.t + (Math.log(f1) - Math.log(VY.min * s)) / (Math.log(VY.max * s) - Math.log(VY.min * s)) * (H - VM.t - VM.b);
   return [x, y];
 }
-let chartTarget = null, chartResult = null, chartExample = null;
+let chartTargets = [], chartResult = [], chartExample = [];   // vowels of the word; your measured vowels; the example's
 function drawAxes() {
   const W = vc.width, H = vc.height, s = chartScale();
   vctx.font = '11px system-ui'; vctx.fillStyle = '#7d8aa6'; vctx.strokeStyle = '#1d2740'; vctx.lineWidth = 1;
@@ -809,7 +833,7 @@ function drawVowelChart(now = performance.now()) {
   drawAxes();
   vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
   // accent variants of the target as small dashed rings
-  if (chartTarget) for (const [t1, t2] of D.VOW[lang][chartTarget].slice(1)) {
+  for (const ct of chartTargets) for (const [t1, t2] of (D.VOW[lang][ct] || []).slice(1)) {
     const [x, y] = vpos(t1 * s, t2 * s);
     vctx.setLineDash([4, 4]); vctx.strokeStyle = '#4f8ef7'; vctx.lineWidth = 2; vctx.beginPath(); vctx.arc(x, y, 22, 0, 7); vctx.stroke(); vctx.setLineDash([]);
   }
@@ -820,27 +844,31 @@ function drawVowelChart(now = performance.now()) {
     if (d < 46) { const m = (46 - d) / 2, ux = dx / d, uy = dy / d; pos[i][0] -= ux * m; pos[i][1] -= uy * m; pos[j][0] += ux * m; pos[j][1] += uy * m; }
   }
   D.VSET[lang].forEach((v, vi) => {
-    const [x, y] = pos[vi], tgt = v === chartTarget;
+    const [x, y] = pos[vi], tgt = chartTargets.includes(v);
     vctx.beginPath(); vctx.arc(x, y, tgt ? 30 : 22, 0, 7);
     vctx.fillStyle = tgt ? '#4f8ef744' : '#1b2438'; vctx.fill();
     vctx.strokeStyle = tgt ? '#4f8ef7' : '#33405e'; vctx.lineWidth = tgt ? 4 : 1.5; vctx.stroke();
     vctx.fillStyle = tgt ? '#fff' : '#b8c3da'; vctx.font = `${tgt ? 'bold 24' : '20'}px system-ui`; vctx.fillText(v, x, y - 2);
     vctx.font = '12px system-ui'; vctx.fillStyle = '#7d8aa6'; vctx.fillText(D.VHINT[lang][v] || '', x, y + (tgt ? 42 : 34));
   });
-  // example vowel: blue diamond
-  if (chartExample) {
-    const [x, y] = vpos(chartExample.f1, chartExample.f2);
+  // example vowels: blue diamonds; your vowels: yellow stars (labelled with the intended vowel in longer words)
+  const many = chartResult.length > 1 || chartExample.length > 1;
+  const tag = (x, y, p, c) => { if (!many) return; vctx.font = 'bold 13px system-ui'; vctx.fillStyle = c; vctx.fillText(p.split('/')[0], x + 17, y - 12); };
+  for (const e of chartExample) {
+    const [x, y] = vpos(e.f1, e.f2);
     vctx.beginPath(); vctx.moveTo(x, y - 13); vctx.lineTo(x + 13, y); vctx.lineTo(x, y + 13); vctx.lineTo(x - 13, y); vctx.closePath();
     vctx.fillStyle = '#7fb2ff'; vctx.fill(); vctx.strokeStyle = '#000'; vctx.lineWidth = 2; vctx.stroke();
+    tag(x, y, e.p, '#7fb2ff');
   }
-  if (chartResult) {
-    const [x, y] = vpos(chartResult.f1, chartResult.f2);
-    if (chartResult.t1) {
-      const [tx, ty] = vpos(chartResult.t1, chartResult.t2);
+  for (const r of chartResult) {
+    const [x, y] = vpos(r.f1, r.f2);
+    if (r.t1) {
+      const [tx, ty] = vpos(r.t1, r.t2);
       vctx.setLineDash([6, 6]); vctx.strokeStyle = '#ffd23f'; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(x, y); vctx.lineTo(tx, ty); vctx.stroke(); vctx.setLineDash([]);
     }
     vctx.beginPath(); vctx.arc(x, y, 14, 0, 7); vctx.fillStyle = '#ffd23f'; vctx.fill(); vctx.strokeStyle = '#000'; vctx.lineWidth = 3; vctx.stroke();
     vctx.fillStyle = '#000'; vctx.font = 'bold 14px system-ui'; vctx.fillText('★', x, y + 1);
+    tag(x, y, r.p, '#ffd23f');
   }
   // live / playback trail on top
   for (let i = 0; i < trail.length; i++) {
@@ -853,10 +881,28 @@ function drawVowelChart(now = performance.now()) {
 
 /* ================= Explore mode ================= */
 $('#micBtn').onclick = async () => {
-  if (micOn) { micOn = false; live = false; }
-  else { if (!(await ensureMic())) return; forgetRecording(); micOn = true; live = true; chartResult = null; }
+  if (micOn) {
+    // stop and turn the last 10 seconds into a picture that can be clicked, played and inspected
+    micOn = false; live = false; endRun();
+    $('#micBtn').textContent = L.analysingBtn; $('#micBtn').disabled = true;
+    await new Promise(r => setTimeout(r, 30));
+    try { analyseExplore(); } finally { $('#micBtn').disabled = false; }
+  } else {
+    if (!(await ensureMic())) return;
+    forgetRecording(true); exFill = 0; exPos = 0; clearSpec(); micOn = true; live = true; chartResult = [];
+  }
   $('#micBtn').textContent = micOn ? L.micStop : L.micStart;
 };
+function analyseExplore() {
+  const n = exFill; if (n < A.FS * 0.5) return;
+  const x = new Float32Array(n);
+  for (let i = 0; i < n; i++) x[i] = exBuf[(exPos - n + i + EXN) % EXN];   // oldest first
+  const an = A.analyzeRecording(x, A.FS, true);
+  pending = []; trail = [];
+  pics.explore = makePic(x, an, 'explore', chartScale());
+  showPic('explore');
+  drawVowelChart();
+}
 
 /* ================= Word mode ================= */
 let list = [], idx = 0;
@@ -877,6 +923,11 @@ function chipHTML(p, mark) {
   const mc = mark === '✓' ? 'var(--good)' : mark === '✗' ? 'var(--bad)' : 'var(--ok)';
   return `<div class="chip" style="background:${COL[c]}" title="${name}">${p}<small>${hint}</small>${mark ? `<span class="mark" style="color:${mc}">${mark}</span>` : ''}</div>`;
 }
+/* sound blocks of a word, with a small gap between syllables */
+function chipsHTML(w, marks) {
+  return w.ph.map((p, i) => (w.syl.includes(i) ? '<div class="sylsep">·</div>' : '') + chipHTML(p, marks && marks[i])).join('');
+}
+const wordVowels = w => w.ph.filter(p => A.clsOf(p) === 'V').map(p => p.split('/')[0]);
 function showProgress() {
   const b = bestOf(list[idx].w);
   $('#progress').textContent = `${idx + 1} / ${list.length}` + (b ? ` · ${L.best}: ${b.s} (${b.n} ${L.attempts})` : '');
@@ -884,11 +935,11 @@ function showProgress() {
 function showWord() {
   const w = list[idx]; if (!w) return;
   if (shown || pics.example) { forgetRecording(true); clearSpec(); }
-  $('#word').textContent = w.w;
-  $('#ipa').textContent = '/' + w.ph.join('') + '/';
-  $('#chips').innerHTML = w.ph.map(p => chipHTML(p)).join('');
+  $('#word').textContent = w.disp;
+  $('#ipa').textContent = '/' + w.ph.map((p, i) => (w.syl.includes(i) ? '.' : '') + p.split('/')[0]).join('') + '/';
+  $('#chips').innerHTML = chipsHTML(w);
   showProgress();
-  chartTarget = mode === 'words' ? (w.ph.find(p => A.clsOf(p) === 'V') || null) : null; chartResult = null;
+  chartTargets = mode === 'words' ? wordVowels(w) : []; chartResult = [];
   $('#result').classList.add('hidden');
   $('#status').textContent = L.ready;
   drawVowelChart();
@@ -915,8 +966,9 @@ async function loadExample() {
     const x16 = A.to16k(dec.getChannelData(0), dec.sampleRate);
     const x = new Float32Array(4800 + x16.length + 4800); x.set(x16, 4800);   // 0.3 s of silence around it
     const an = A.analyzeRecording(x, A.FS), sc = EX_SCALE[sex];
-    const m = A.measureVowel(an.frames, an.segs);
-    chartExample = m ? { f1: m[0] * chartScale() / sc, f2: m[1] * chartScale() / sc } : null;   // shifted to your voice
+    // the example's vowels, measured like an attempt and shifted to your voice size
+    chartExample = A.scoreAttempt(w, an, { lang, scale: sc }).vowels.filter(v => v.meas)
+      .map(v => ({ f1: v.meas[0] * chartScale() / sc, f2: v.meas[1] * chartScale() / sc, p: v.p }));
     live = false; pending = [];
     pics.example = makePic(x, an, 'example', sc);
     showPic('example');
@@ -937,7 +989,7 @@ $('#speakBtn').onclick = async () => { if (recording) stopAttempt(); else startA
 async function startAttempt() {
   if (!(await ensureMic())) return;
   forgetRecording();
-  clearSpec(); trail = []; chartResult = null; drawVowelChart();
+  clearSpec(); trail = []; chartResult = []; drawVowelChart();
   // keep the 0.4 s before the button press: the analysis needs a bit of silence to measure the room noise
   const pre = new Float32Array(PRE); pre.set(ring.subarray(ringPos)); pre.set(ring.subarray(0, ringPos), PRE - ringPos);
   recording = { chunks: [pre], frames: 0, silent: 0, spoke: false, results: null, recErr: null, recDone: !SR, word: list[idx] };
@@ -999,9 +1051,8 @@ function finish(rec) {
   const rs = recognitionScore(rec, w);
   const res = A.scoreAttempt(w, an, { lang, scale: currentScale(), recScore: rs.score });
   // learn the speaker's vowel scale from attempts that were clearly the right word
-  const tv = w.ph.find(p => A.clsOf(p) === 'V');
-  if (res.meas && tv && (rs.exact || (rs.score == null && res.total >= 70))) {
-    const c = calib(); c.push({ lang, target: tv, f1: res.meas[0], f2: res.meas[1] }); store.set('st_calib', c.slice(-40));
+  if (res.meas && (rs.exact || (rs.score == null && res.total >= 70))) {
+    const c = calib(); c.push({ lang, target: res.measTarget, f1: res.meas[0], f2: res.meas[1] }); store.set('st_calib', c.slice(-40));
   }
   saveBest(w.w, res.total);
   pending = [];
@@ -1024,20 +1075,19 @@ function renderResult(r, rs, w, guesses) {
   // feedback: recognition first, then sound issues (with a how-to tip for missing/wrong consonants)
   const fb = [];
   if (rs.first != null) fb.push(rs.exact ? L.fbPerfect : L.fbWrongWord(rs.first, w.w));
+  const multi = wordVowels(w).length > 1;
   for (const i of r.issues) {
     if (i.k === 'vowelLike') { fb.push(L.vowelLike(i, vLabel(i.p), vLabel(i.near))); continue; }
     const f = L[i.k]; if (typeof f !== 'function') continue;
     let txt = f(i);
+    // in longer words, say which vowel a mouth/tongue tip is about
+    if (multi && i.p && ['vOpen', 'vClose', 'vFront', 'vBack'].includes(i.k)) txt = `<b>${i.p}</b> (“${D.VHINT[lang][i.p] || i.p}”): ${txt}`;
     if (['missing', 'place', 'weakBurst', 'aspirated'].includes(i.k) && L.tips[i.p]) txt += ' ' + L.tips[i.p];
     fb.push(txt);
   }
   $('#feedback').innerHTML = fb.map(x => `<li>${x}</li>`).join('');
-  $('#chips').innerHTML = w.ph.map((p, i) => chipHTML(p, r.marks[i])).join('');
-  if (r.meas) {
-    const tv = w.ph.find(p => A.clsOf(p) === 'V');
-    const m = tv ? A.vowelMatch(lang, tv, r.meas[0], r.meas[1], typeof r.scale === 'number' ? r.scale : chartScale()) : {};
-    chartResult = { f1: r.meas[0], f2: r.meas[1], t1: m.t1, t2: m.t2 };
-  }
+  $('#chips').innerHTML = chipsHTML(w, r.marks);
+  chartResult = r.vowels.filter(v => v.meas).map(v => ({ f1: v.meas[0], f2: v.meas[1], t1: v.t1, t2: v.t2, p: v.p }));
   $('#result').classList.remove('hidden');
   $('#status').textContent = '';
   showProgress();
@@ -1050,7 +1100,7 @@ function setMode(m) {
   $('#tabExplore').classList.toggle('on', m === 'explore'); $('#tabWords').classList.toggle('on', m === 'words');
   $('#explorePanel').classList.toggle('hidden', m !== 'explore'); $('#wordPanel').classList.toggle('hidden', m !== 'words');
   if (recording) stopAttempt();
-  if (m === 'explore') { chartTarget = null; chartResult = null; live = micOn; }
+  if (m === 'explore') { chartTargets = []; chartResult = []; chartExample = []; forgetRecording(true); clearSpec(); live = micOn; }
   else { live = false; showWord(); }
   drawVowelChart();
 }

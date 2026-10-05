@@ -25,7 +25,7 @@ for (const lang of LANGS) {
   if (!fs.existsSync(root)) { console.log(`(no audio for ${lang})`); continue; }
   const voices = fs.readdirSync(root).filter(v => !VOICE || v.includes(VOICE));
   for (const cond of CONDS) {
-    const st = { cons: {}, place: {}, vowelOk: 0, vowelN: 0, vowelScore: 0, self: [], extras: 0, files: 0, pairs: 0, pairOk: 0, gap: 0, fails: [] };
+    const st = { cons: {}, place: {}, vowelOk: 0, vowelN: 0, vowelScore: 0, self: [], long: {}, extras: 0, files: 0, pairs: 0, pairOk: 0, gap: 0, fails: [] };
     for (const voice of voices) {
       const cache = {};
       const analyse = w => {
@@ -38,8 +38,8 @@ for (const lang of LANGS) {
         const calib = [];
         for (const tw of D.WORDS[lang]) {
           const an = analyse(tw.w); if (!an) continue;
-          const m = A.measureVowel(an.frames, an.segs), tv = tw.ph.find(p => A.clsOf(p) === 'V');
-          if (m && tv) calib.push({ lang, target: tv, f1: m[0], f2: m[1] });
+          const r = A.scoreAttempt(tw, an, { lang, scale: 1 });   // the scale only affects scores, not the measurement
+          if (r.meas) calib.push({ lang, target: r.measTarget, f1: r.meas[0], f2: r.meas[1] });
         }
         scale = A.estimateScale(calib) || 'auto';
       }
@@ -57,6 +57,7 @@ for (const lang of LANGS) {
         }
         const isTarget = D.WORDS[lang].some(x => x.w === w);
         if (isTarget) st.self.push(res.total);
+        if (isTarget && info.cats.includes('long')) { const n = info.syl.length + 1; (st.long[n] = st.long[n] || []).push(res.total); }
         // consonant detection + place (raw classifier output, and how often a confident verdict is wrong)
         const tg = info.ph.map((p, i) => ({ p, i, c: A.clsOf(p) })), mt = A.align(tg, an.segs);
         tg.forEach((t, k) => {
@@ -67,7 +68,7 @@ for (const lang of LANGS) {
           if (s.sure) { st.rawPlace.sure++; if (s.place !== D.PLACE[t.p]) st.rawPlace.sureWrong++; }
         });
         info.ph.forEach((p, k) => {
-          const c = A.clsOf(p); if (c === 'V' || c === 'B') return;
+          const c = A.clsOf(p); if (c === 'V' || 'BLHW'.includes(c)) return;
           const o = st.cons[p] = st.cons[p] || { n: 0, ok: 0 }; o.n++;
           const missing = res.issues.some(i => i.k === 'missing' && i.p === p) && res.marks[k] === '✗';
           if (!missing) o.ok++;
@@ -76,8 +77,7 @@ for (const lang of LANGS) {
             st.place[p] = st.place[p] || {}; st.place[p][heard] = (st.place[p][heard] || 0) + 1;
           }
         });
-        const tv = info.ph.find(p => A.clsOf(p) === 'V');
-        if (tv) { st.vowelN++; if (res.near && tv.split('/').includes(res.near)) st.vowelOk++; st.vowelScore += res.vowel || 0; }
+        for (const v of res.vowels) { st.vowelN++; if (v.near && v.p.split('/').includes(v.near)) st.vowelOk++; st.vowelScore += v.score; }
         if (isTarget && (res.total < 75 || VERBOSE)) st.fails.push(`${voice.padEnd(24)} ${w.padEnd(7)} ${String(res.total).padStart(3)}  ${res.marks.map((m, i) => info.ph[i] + (m || '·')).join(' ').padEnd(16)} vowel ${res.meas ? res.meas.map(Math.round).join('/') + '→' + res.near : '-'}  ${segStr(an.segs)}`);
       }
       // discrimination: a different word should score clearly lower than the right one
@@ -99,6 +99,8 @@ for (const lang of LANGS) {
     const selfAvg = st.self.reduce((a, b) => a + b, 0) / st.self.length;
     console.log(`Vowel identified: ${pct(st.vowelOk, st.vowelN)}  avg vowel score ${(st.vowelScore / st.vowelN).toFixed(0)}`);
     console.log(`Correct words: avg score ${selfAvg.toFixed(1)}, ≥75: ${pct(st.self.filter(s => s >= 75).length, st.self.length)}   extra segments/recording ${(st.extras / st.files).toFixed(2)}`);
+    const avg = a => (a.reduce((u, v) => u + v, 0) / a.length).toFixed(1);
+    if (Object.keys(st.long).length) console.log('Longer words (correct): ' + Object.entries(st.long).map(([n, a]) => `${n} syllables avg ${avg(a)} (n=${a.length})`).join(' | '));
     console.log(`Wrong words scored ≥10 lower: ${pct(st.pairOk, st.pairs)}  (avg gap ${(st.gap / st.pairs).toFixed(1)})`);
     if (VERBOSE || has('fails')) st.fails.forEach(f => console.log('  ' + f));
     const consAll = cons.reduce((a, [, o]) => [a[0] + o.ok, a[1] + o.n], [0, 0]);
