@@ -71,7 +71,17 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
 .timeline{display:flex;gap:3px;margin:8px 0 4px;flex-wrap:wrap}
 .timeline div{padding:3px 8px;border-radius:6px;font-size:14px;font-weight:700;color:#0b0f18}
 .warn{background:#3a2a10;border:1px solid var(--ok);border-radius:12px;padding:10px 14px}
-@media (max-width:900px){.now,.viz,.result{grid-template-columns:1fr}#word{font-size:60px}}
+.axis-help{font-size:14px;margin:8px 0 0}
+.details{display:grid;grid-template-columns:1fr 1.1fr;gap:20px;align-items:start}
+.dgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center;font-size:16px}
+.dgrid .k{color:var(--muted);font-size:14px}
+.dgrid .v b{font-size:20px}
+.dgrid .why{color:var(--muted);font-size:14px}
+.ebar{display:grid;grid-template-columns:minmax(150px,230px) 1fr 44px;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.ebar .meter{height:14px}
+.ebar .meter>div{background:var(--accent)}
+#picSwitch button{padding:5px 12px;font-size:15px}
+@media (max-width:900px){.now,.viz,.result,.details{grid-template-columns:1fr}#word{font-size:60px}}
 </style>
 </head>
 <body>
@@ -128,6 +138,8 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
   <section id="wordPanel" class="panel hidden">
     <div class="wordtop">
       <label class="sel"><span data-t="category">Practise</span> <select id="cat"></select></label>
+      <label class="sel"><span data-t="exampleVoice">Example voice</span>
+        <select id="exVoice"><option value="male" data-t="exMale">Man</option><option value="female" data-t="exFemale">Woman</option></select></label>
       <div class="spacer"></div>
       <span id="progress" class="muted"></span>
     </div>
@@ -161,7 +173,15 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
   <!-- SHARED VISUALS -->
   <section class="viz">
     <div class="panel">
-      <h2 data-t="specTitle"></h2>
+      <div class="wordtop" style="margin-bottom:8px">
+        <h2 data-t="specTitle" style="margin:0"></h2>
+        <div class="spacer"></div>
+        <div id="picSwitch" class="tabs hidden">
+          <button id="picExample" data-t="picExample">Example</button>
+          <button id="picAttempt" data-t="picAttempt">My attempt</button>
+        </div>
+        <label class="sel"><input type="checkbox" id="showFm" checked> <span data-t="showFm">F1/F2 lines</span></label>
+      </div>
       <canvas id="spec" width="1000" height="292"></canvas>
       <div class="legend" id="legend"></div>
       <div id="playRow" class="controls hidden" style="justify-content:flex-start;margin-top:10px">
@@ -173,7 +193,21 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
     <div class="panel">
       <h2 data-t="vowelTitle"></h2>
       <canvas id="vowel" width="520" height="440"></canvas>
-      <div class="legend"><span data-t="vowelLegend"></span></div>
+      <div class="legend" id="vowelLegend2"></div>
+      <p class="muted axis-help" data-t="vowelAxes"></p>
+    </div>
+  </section>
+
+  <!-- RAW DATA -->
+  <section class="panel">
+    <h2 data-t="detailsTitle"></h2>
+    <p class="muted" style="margin:0 0 10px;font-size:14px" data-t="detailsHelp"></p>
+    <div class="details">
+      <div id="details" class="dgrid"></div>
+      <div>
+        <canvas id="mini" width="560" height="230"></canvas>
+        <div class="legend" id="miniLegend"></div>
+      </div>
     </div>
   </section>
 </main>
@@ -197,6 +231,20 @@ const T = {
     voiceOn:'🟢 Voice ON', voiceOff:'⚪ Voice OFF', pitch:'Pitch', tooQuiet:'Very quiet', good:'Good', loud:'Loud',
     category:'Practise', prev:'◀ Previous', next:'Next ▶', listen:'🔊 Listen', speak:'🎤 Say it', stop:'⏹ Stop',
     play:'▶ Play recording', playSlow:'🐢 Slow', playStop:'⏹ Stop', playHint:'Tip: click in the picture to play from that point.',
+    exampleVoice:'Example voice', exMale:'Man', exFemale:'Woman', picExample:'Example', picAttempt:'My attempt', showFm:'F1/F2 lines',
+    exampleLoading:'Loading the example…', exampleShown:'This is the example. Look at the picture and the vowel map, then press “Say it”.',
+    exampleMarker:'◆ example', yourMarker:'★ you', liveMarker:'● now',
+    vowelAxes:'Horizontal axis = F2, the 2nd resonance of your mouth (Hz). High F2 (left) = tongue forward and lips spread, as in “ee”. Low F2 (right) = tongue back and lips rounded, as in “oo”. Vertical axis = F1, the 1st resonance (Hz). Low F1 (top) = mouth almost closed (“ee”, “oo”). High F1 (bottom) = mouth wide open (“a”). Your F1 and F2 also appear as cyan and green lines in the sound picture.',
+    detailsTitle:'Sound details — the measurements behind the letters',
+    detailsHelp:'These are the values the app uses to decide which sound it is. They follow the live microphone, the playback marker, or your mouse over the recording.',
+    dSound:'Sound', dVoice:'Voice', dLoud:'Loudness', dEnergy:'Energy per band', dCen:'Centre of gravity', dTime:'Time',
+    on:'on', off:'off', regular:'regularity',
+    f1Why:f=>f < 420 ? 'low → mouth almost closed' : f < 620 ? 'middle → mouth half open' : 'high → mouth wide open',
+    f2Why:f=>f < 1150 ? 'low → tongue back / lips rounded' : f < 1700 ? 'middle → tongue in the middle' : 'high → tongue forward',
+    cenWhy:c=>c > 4500 ? 'very high → sharp hiss (s)' : c > 2800 ? 'high → hiss (ʃ, f) or t' : c > 1300 ? 'middle → k, or vowel with high F2' : 'low → vowel, hum or voice',
+    voiceWhy:'regular vibration = vocal folds on',
+    bands:['< 500 Hz · voice, hums, F1','500–1500 Hz · F1/F2 of a, o, u','1500–3500 Hz · F2 of e/i, k, ʃ','> 3500 Hz · s, z, t'],
+    miniLegend:'Spectrum at this moment · cyan = F1, green = F2, orange = centre of gravity, dashed = voice pitch harmonics',
     outOf:'of 100', detected:'Detected sounds (in order):',
     specTitle:'Sound picture (spectrogram) — low pitch at the bottom, high at the top',
     vowelTitle:'Vowel map — where is your tongue?',
@@ -258,6 +306,20 @@ const T = {
     voiceOn:'🟢 Stem AAN', voiceOff:'⚪ Stem UIT', pitch:'Toonhoogte', tooQuiet:'Erg zacht', good:'Goed', loud:'Hard',
     category:'Oefenen', prev:'◀ Vorige', next:'Volgende ▶', listen:'🔊 Luister', speak:'🎤 Zeg het', stop:'⏹ Stop',
     play:'▶ Opname afspelen', playSlow:'🐢 Langzaam', playStop:'⏹ Stop', playHint:'Tip: klik in het beeld om vanaf dat punt af te spelen.',
+    exampleVoice:'Voorbeeldstem', exMale:'Man', exFemale:'Vrouw', picExample:'Voorbeeld', picAttempt:'Mijn poging', showFm:'F1/F2-lijnen',
+    exampleLoading:'Voorbeeld laden…', exampleShown:'Dit is het voorbeeld. Bekijk het beeld en de klinkerkaart en druk dan op “Zeg het”.',
+    exampleMarker:'◆ voorbeeld', yourMarker:'★ jij', liveMarker:'● nu',
+    vowelAxes:'Horizontale as = F2, de 2e resonantie van je mond (Hz). Hoge F2 (links) = tong naar voren en lippen breed, zoals bij “ie”. Lage F2 (rechts) = tong naar achteren en lippen rond, zoals bij “oe”. Verticale as = F1, de 1e resonantie (Hz). Lage F1 (boven) = mond bijna dicht (“ie”, “oe”). Hoge F1 (onder) = mond wijd open (“aa”). Je F1 en F2 zie je ook als cyaan en groene lijnen in het klankbeeld.',
+    detailsTitle:'Klankdetails — de metingen achter de letters',
+    detailsHelp:'Dit zijn de waarden waarmee de app bepaalt welke klank het is. Ze volgen de microfoon, de afspeelstreep, of je muis boven de opname.',
+    dSound:'Klank', dVoice:'Stem', dLoud:'Luidheid', dEnergy:'Energie per band', dCen:'Zwaartepunt', dTime:'Tijd',
+    on:'aan', off:'uit', regular:'regelmaat',
+    f1Why:f=>f < 420 ? 'laag → mond bijna dicht' : f < 620 ? 'midden → mond half open' : 'hoog → mond wijd open',
+    f2Why:f=>f < 1150 ? 'laag → tong achter / lippen rond' : f < 1700 ? 'midden → tong in het midden' : 'hoog → tong naar voren',
+    cenWhy:c=>c > 4500 ? 'heel hoog → scherpe sis (s)' : c > 2800 ? 'hoog → sis (sj, f) of t' : c > 1300 ? 'midden → k, of klinker met hoge F2' : 'laag → klinker, neusklank of stem',
+    voiceWhy:'regelmatige trilling = stembanden aan',
+    bands:['< 500 Hz · stem, neusklank, F1','500–1500 Hz · F1/F2 van a, o, oe','1500–3500 Hz · F2 van e/i, k, sj','> 3500 Hz · s, z, t'],
+    miniLegend:'Spectrum op dit moment · cyaan = F1, groen = F2, oranje = zwaartepunt, gestreept = boventonen van de stem',
     outOf:'van 100', detected:'Gevonden klanken (op volgorde):',
     specTitle:'Klankbeeld (spectrogram) — lage tonen onder, hoge tonen boven',
     vowelTitle:'Klinkerkaart — waar is je tong?',
@@ -348,7 +410,10 @@ function applyLang() {
   $('#voiceType').title = voiceSetting === 'auto' && n >= 5 ? L.calibrated(n) : '';
   $('#guide').innerHTML = L.guide.map(([c, nm, d]) =>
     `<div class="gcard" id="g${c}" style="border-color:${COL[c]}55"><b><span class="sw" style="background:${COL[c]}"></span>${nm}</b><div class="muted" style="font-size:15px">${d}</div></div>`).join('');
-  $('#legend').innerHTML = ['V','F','Z','P','N','S'].map(c => `<span><i style="background:${COL[c]}"></i>${L.cls[c]}</span>`).join('');
+  $('#legend').innerHTML = ['V','F','Z','P','N','S'].map(c => `<span><i style="background:${COL[c]}"></i>${L.cls[c]}</span>`).join('') +
+    `<span><i style="background:${F1C}"></i>F1</span><span><i style="background:${F2C}"></i>F2</span>`;
+  $('#vowelLegend2').innerHTML = `<span style="color:#7fb2ff">${L.exampleMarker}</span><span style="color:#ffd23f">${L.yourMarker}</span><span style="color:#fff">${L.liveMarker}</span>`;
+  $('#miniLegend').innerHTML = `<span>${L.miniLegend}</span>`;
   const cs = $('#cat'), prev = cs.value || 'all';
   cs.innerHTML = Object.entries(L.cats).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
   cs.value = prev;
@@ -375,12 +440,17 @@ const TAP_SRC = `class Tap extends AudioWorkletProcessor {
 }
 registerProcessor('tap', Tap);`;
 
+/* Audio output (playback, examples) needs no microphone. */
+async function ensureCtx() {
+  if (!actx) { actx = new AudioContext(); requestAnimationFrame(draw); }
+  if (actx.state === 'suspended') await actx.resume();
+}
 async function ensureMic() {
-  if (actx) { if (actx.state === 'suspended') await actx.resume(); return true; }
+  await ensureCtx();
+  if (stream16) return true;
   let ms;
   try { ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } }); }
   catch (e) { alert(L.noMic); return false; }
-  actx = new AudioContext();
   const src = actx.createMediaStreamSource(ms);
   stream16 = new A.Stream(actx.sampleRate);
   labeler = new A.LiveLabeler();
@@ -398,7 +468,6 @@ async function ensureMic() {
   }
   const mute = actx.createGain(); mute.gain.value = 0;
   src.connect(tap); tap.connect(mute); mute.connect(actx.destination);
-  requestAnimationFrame(draw);
   return true;
 }
 function onAudio(chunk) {
@@ -407,14 +476,17 @@ function onAudio(chunk) {
 }
 
 /* ---------- Per 10 ms frame ---------- */
-let pending = [], latest = null, trail = [], noiseRun = 0, noiseRecolour = false, lastCls = 'S', holdUntil = 0;
+let pending = [], latest = null, trail = [], noiseRun = 0, noiseRecolour = false, lastCls = 'S', holdUntil = 0, run = null;
 function onFrame(f) {
   const c = labeler.label(f), now = performance.now();
   // live: unvoiced noise shorter than 100 ms is drawn as a burst, recoloured as hiss when it lasts
   let drawC = c;
   if (c === 'F') { noiseRun++; if (noiseRun < 10) drawC = 'P'; else if (!noiseRecolour) { noiseRecolour = true; pending.push({ recolour: noiseRun - 1 }); } }
   else { noiseRun = 0; noiseRecolour = false; }
-  pending.push({ spec: f.spec, c: drawC });
+  // live IPA label: when a stretch of one sound type ends, label it with its best guess
+  if (!run || run.c !== c) { endRun(); run = { c, frames: [] }; }
+  run.frames.push(f);
+  pending.push({ spec: f.spec, c: drawC, fm: f.fm });
   if (c === 'V' && f.fm) trail.push({ f1: f.fm[0], f2: f.fm[1], t: now });
   latest = { f, c, drawC, now };
   if (recording && !recording.finishing) {
@@ -424,55 +496,91 @@ function onFrame(f) {
     if ((recording.spoke && recording.silent > 80) || recording.frames > 500) stopAttempt();
   }
 }
+function endRun() {
+  if (!run) return;
+  const n = run.frames.length;
+  let c = run.c; if (c === 'F' && n < 10) c = 'P';
+  if (c !== 'S' && (n >= 3 || c === 'P')) {
+    const g = A.guessSound(run.frames, { c, a: 0, b: n - 1 }, lang, chartScale());
+    if (g) pending.push({ label: g, cols: n });
+  }
+  run = null;
+}
 
 /* ---------- Drawing (once per screen refresh) ---------- */
 const spec = $('#spec'), sctx = spec.getContext('2d');
 const SW = spec.width, SH = 256, STRIP = spec.height - SH, STEP = 2;
 const CMAP = [[0,0,0],[30,20,90],[120,30,140],[220,60,90],[250,150,40],[255,240,150]];
+const F1C = '#36e2ff', F2C = '#7dff6a', CENC = '#ff9d2e';
 function cmap(t) {
   t = Math.min(1, Math.max(0, t)) * (CMAP.length - 1);
   const i = Math.floor(t), fr = t - i, a = CMAP[i], b = CMAP[Math.min(i + 1, CMAP.length - 1)];
   return [a[0] + (b[0] - a[0]) * fr, a[1] + (b[1] - a[1]) * fr, a[2] + (b[2] - a[2]) * fr];
+}
+const yOf = hz => SH * (1 - hz / 8000);
+const showFm = () => $('#showFm').checked;
+function stripLabel(g, text, x0, w) {
+  if (!text || w < 12) return;
+  g.font = `bold ${w < 22 ? 12 : 16}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#0b0f18'; g.fillText(text, x0 + w / 2, SH + 4 + (STRIP - 4) / 2);
 }
 let specTop = 20;
 function drawColumns() {
   const cols = pending.filter(p => p.spec); if (!pending.length) return;
   const n = cols.length;
   if (n) sctx.drawImage(spec, -n * STEP, 0);
-  const img = sctx.createImageData(Math.max(1, n) * STEP, SH);
+  const img = sctx.createImageData(Math.max(1, n) * STEP, SH), dots = [], labels = [];
   let k = 0;
   for (const p of pending) {
     if (p.recolour) { const back = n - k; sctx.fillStyle = COL.F; sctx.fillRect(SW - (back + p.recolour) * STEP, SH + 4, p.recolour * STEP, STRIP - 4); continue; }
+    if (p.label) { const xe = SW - (n - k) * STEP; labels.push([p.label, xe - p.cols * STEP, p.cols * STEP]); continue; }
     let mx = -99; for (let b = 2; b < 256; b++) if (p.spec[b] > mx) mx = p.spec[b];
     specTop = Math.max(mx, specTop - 0.05);
     for (let y = 0; y < SH; y++) {
       const [r, g, bl] = cmap((p.spec[255 - y] - (specTop - 70)) / 70);
       for (let x = 0; x < STEP; x++) { const o = (y * n * STEP + k * STEP + x) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = bl; img.data[o + 3] = 255; }
     }
+    if (p.fm && p.c === 'V') dots.push([SW - (n - k) * STEP, p.fm]);
     sctx.fillStyle = COL[p.c]; sctx.fillRect(SW - (n - k) * STEP, SH + 4, STEP, STRIP - 4);
     sctx.fillStyle = '#000'; sctx.fillRect(SW - (n - k) * STEP, SH, STEP, 4);
     k++;
   }
   if (n) sctx.putImageData(img, SW - n * STEP, 0);
+  if (showFm()) for (const [x, [f1, f2]] of dots) { sctx.fillStyle = F1C; sctx.fillRect(x, yOf(f1) - 1, STEP, 3); sctx.fillStyle = F2C; sctx.fillRect(x, yOf(f2) - 1, STEP, 3); }
+  for (const [t, x0, w] of labels) stripLabel(sctx, t, x0, w);
   pending = [];
 }
-function clearSpec() {
-  sctx.fillStyle = '#000'; sctx.fillRect(0, 0, SW, spec.height);
-  sctx.fillStyle = '#ffffff55'; sctx.font = '13px system-ui';
-  [1000, 2000, 4000, 6000].forEach(hz => { const y = SH * (1 - hz / 8000); sctx.fillText(hz / 1000 + ' kHz', 4, y + 4); });
+function freqLabels(g) {
+  g.fillStyle = '#ffffff66'; g.font = '13px system-ui'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  [1000, 2000, 4000, 6000].forEach(hz => g.fillText(hz / 1000 + ' kHz', 4, yOf(hz) + 4));
 }
-/* ---------- Recorded attempt: static picture + playback with a moving marker ---------- */
-let shown = null;   // { x (16 kHz samples), s0 (first sample shown), cols, colW, img (offscreen canvas) }
-let player = null;  // { src, t0, from, rate }
-function renderRecording(x, an) {
+function clearSpec() { sctx.fillStyle = '#000'; sctx.fillRect(0, 0, SW, spec.height); freqLabels(sctx); }
+
+/* ---------- Recordings (example + attempt): static picture, playback marker, hover ---------- */
+const pics = { example: null, attempt: null };
+let shown = null;    // the picture on screen
+let player = null;   // { src, t0, from, rate }
+let hoverIdx = null; // frame under the mouse
+/* x: 16 kHz samples, an: analyzeRecording result, scale: vocal-tract scale of that voice (for vowel guesses) */
+function makePic(x, an, kind, scale) {
   const fr = an.frames, segs = an.segs;
   let a = 0, b = fr.length - 1;
   if (segs.length) { a = Math.max(0, segs[0].a - 25); b = Math.min(fr.length - 1, segs[segs.length - 1].b + 25); }
-  const cols = b - a + 1, colW = SW / cols;
-  const img = document.createElement('canvas'); img.width = SW; img.height = spec.height;
+  const guesses = segs.map(s => A.guessSound(fr, s, lang, scale));
+  const segOf = new Int16Array(fr.length).fill(-1);
+  segs.forEach((s, j) => { for (let i = s.a; i <= s.b; i++) segOf[i] = j; });
+  const pic = { kind, x, an, a, b, cols: b - a + 1, colW: SW / (b - a + 1), scale, guesses, segOf,
+                s0: Math.max(0, 440 + a * A.HOP - A.HOP / 2) };   // frame i is centred on sample 440 + 160·i (analysis.js)
+  paintPic(pic);
+  return pic;
+}
+function paintPic(pic) {
+  const { an: { frames: fr, segs }, a, cols, colW } = pic;
+  const img = pic.img || (pic.img = document.createElement('canvas'));
+  img.width = SW; img.height = spec.height;
   const g = img.getContext('2d');
   g.fillStyle = '#000'; g.fillRect(0, 0, SW, spec.height);
-  let top = -99; for (let i = a; i <= b; i++) for (let k = 2; k < 256; k++) top = Math.max(top, fr[i].spec[k]);
+  let top = -99; for (let i = a; i < a + cols; i++) for (let k = 2; k < 256; k++) top = Math.max(top, fr[i].spec[k]);
   const id = g.createImageData(SW, SH);
   for (let px = 0; px < SW; px++) {
     const f = fr[a + Math.min(cols - 1, Math.floor(px / colW))];
@@ -482,23 +590,35 @@ function renderRecording(x, an) {
     }
   }
   g.putImageData(id, 0, 0);
+  if (showFm()) for (let i = a; i < a + cols; i++) {
+    const j = pic.segOf[i], f = fr[i];
+    if (j < 0 || segs[j].c !== 'V' || !f.fm) continue;
+    const x = (i - a) * colW, w = Math.max(2, colW);
+    g.fillStyle = F1C; g.fillRect(x, yOf(f.fm[0]) - 1.5, w, 3); g.fillStyle = F2C; g.fillRect(x, yOf(f.fm[1]) - 1.5, w, 3);
+  }
   g.fillStyle = COL.S; g.fillRect(0, SH + 4, SW, STRIP - 4);
-  g.font = 'bold 13px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  for (const s of segs) {
+  segs.forEach((s, j) => {
     const x0 = (s.a - a) * colW, w = (s.b - s.a + 1) * colW;
     g.fillStyle = COL[s.c]; g.fillRect(x0, SH + 4, Math.max(2, w - 1), STRIP - 4);
-    const lab = s.c === 'P' ? (s.place || '') : '';
-    if (lab && w > 12) { g.fillStyle = '#0b0f18'; g.fillText(lab, x0 + w / 2, SH + 4 + (STRIP - 4) / 2); }
-  }
-  g.fillStyle = '#ffffff55'; g.font = '13px system-ui'; g.textAlign = 'left';
-  [1000, 2000, 4000, 6000].forEach(hz => g.fillText(hz / 1000 + ' kHz', 4, SH * (1 - hz / 8000) + 4));
-  // frame i is centred on sample 440 + 160·i (see analysis.js)
-  shown = { x, s0: Math.max(0, 440 + a * A.HOP - A.HOP / 2), a, cols, colW, img };
-  sctx.drawImage(img, 0, 0);
-  $('#playRow').classList.remove('hidden');
+    stripLabel(g, pic.guesses[j], x0, w);
+  });
+  freqLabels(g);
 }
-function forgetRecording() { stopPlayback(); shown = null; $('#playRow').classList.add('hidden'); }
+function showPic(kind) {
+  stopPlayback();
+  shown = pics[kind] || null;
+  if (shown) sctx.drawImage(shown.img, 0, 0);
+  $('#playRow').classList.toggle('hidden', !shown);
+  $('#picSwitch').classList.toggle('hidden', !(pics.example && pics.attempt));
+  $('#picExample').classList.toggle('on', kind === 'example'); $('#picAttempt').classList.toggle('on', kind === 'attempt');
+}
+function forgetRecording(all) {
+  stopPlayback(); shown = null; pics.attempt = null;
+  if (all) { pics.example = null; chartExample = null; }
+  $('#playRow').classList.add('hidden'); $('#picSwitch').classList.add('hidden');
+}
 const sampleToX = n => ((n - 440) / A.HOP - shown.a + 0.5) * shown.colW;
+const xToFrame = x => Math.max(shown.a, Math.min(shown.b, Math.floor(x / shown.colW) + shown.a));
 function stopPlayback() {
   if (player) { try { player.src.stop(); } catch (e) {} player = null; }
   $('#playBtn').textContent = L.play; $('#slowBtn').textContent = L.playSlow;
@@ -508,7 +628,7 @@ async function play(rate, fromSample) {
   if (!shown) return;
   const was = player && player.rate === rate && fromSample == null;
   stopPlayback(); if (was) return;   // second press = stop
-  if (!(await ensureMic())) return;
+  await ensureCtx();
   const from = fromSample == null ? shown.s0 : Math.max(0, Math.round(fromSample));
   const data = shown.x.subarray(from), buf = actx.createBuffer(1, data.length, A.FS);
   buf.copyToChannel(data, 0);
@@ -518,29 +638,110 @@ async function play(rate, fromSample) {
   player = { src, t0: actx.currentTime, from, rate };
   (rate === 1 ? $('#playBtn') : $('#slowBtn')).textContent = L.playStop;
 }
-function drawMarker() {
-  if (!player || !shown) return;
-  const n = player.from + (actx.currentTime - player.t0) * player.rate * A.FS, x = sampleToX(n);
-  if (x > SW) return stopPlayback();
+/* frame index under the playback marker (or null) */
+function markerFrame() {
+  if (!player || !shown) return null;
+  const n = player.from + (actx.currentTime - player.t0) * player.rate * A.FS;
+  if (sampleToX(n) > SW) { stopPlayback(); return null; }
+  return Math.round((n - 440) / A.HOP);
+}
+function drawCursor(i, colour) {
   sctx.drawImage(shown.img, 0, 0);
-  sctx.fillStyle = '#ffffff'; sctx.fillRect(x - 1, 0, 3, spec.height);
+  const x = (i - shown.a + 0.5) * shown.colW;
+  sctx.fillStyle = colour; sctx.fillRect(x - 1, 0, 3, spec.height);
+}
+/* vowel-map trail from the recording around frame i (formants of the example are shifted to your voice) */
+function picTrail(i, now) {
+  const fr = shown.an.frames, norm = shown.kind === 'example' ? chartScale() / shown.scale : 1, t = [];
+  for (let j = Math.max(shown.a, i - 20); j <= i; j++) {
+    const s = shown.segOf[j];
+    if (s >= 0 && shown.an.segs[s].c === 'V' && fr[j].fm) t.push({ f1: fr[j].fm[0] * norm, f2: fr[j].fm[1] * norm, t: now - (i - j) * 70 });
+  }
+  return t;
 }
 $('#playBtn').onclick = () => play(1);
 $('#slowBtn').onclick = () => play(0.5);
+$('#picExample').onclick = () => showPic('example');
+$('#picAttempt').onclick = () => showPic('attempt');
+$('#showFm').onchange = () => { for (const k in pics) if (pics[k]) paintPic(pics[k]); if (shown && !live) sctx.drawImage(shown.img, 0, 0); };
 spec.addEventListener('click', e => {
   if (!shown || live) return;
   const r = spec.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * SW;
   play(1, 440 + (x / shown.colW + shown.a - 0.5) * A.HOP);
 });
+spec.addEventListener('mousemove', e => {
+  if (!shown || live) return;
+  const r = spec.getBoundingClientRect();
+  hoverIdx = xToFrame((e.clientX - r.left) / r.width * SW);
+});
+spec.addEventListener('mouseleave', () => { hoverIdx = null; if (shown && !live && !player) sctx.drawImage(shown.img, 0, 0); });
 
 function draw(now) {
   requestAnimationFrame(draw);
-  drawMarker();
-  if (!live && !pending.length) return;
-  drawColumns();
-  while (trail.length && now - trail[0].t > 1500) trail.shift();
-  drawVowelChart(now);
-  if (latest) updateNow(latest);
+  if (live || pending.length) drawColumns();
+  let detail = null, chart = live;
+  const mi = markerFrame();
+  if (mi != null) { drawCursor(mi, '#ffffff'); trail = picTrail(mi, now); detail = picDetail(mi); chart = true; }
+  else if (hoverIdx != null && shown && !live) { drawCursor(hoverIdx, '#ffffff88'); trail = picTrail(hoverIdx, now); detail = picDetail(hoverIdx); chart = true; }
+  else if (live && latest) detail = { f: latest.f, c: latest.drawC, guess: liveGuess(latest), t: null };
+  else if (trail.length && !live) { trail = []; chart = true; }
+  while (live && trail.length && now - trail[0].t > 1500) trail.shift();
+  if (chart) drawVowelChart(now);
+  if (detail) showDetails(detail);
+  if (live && latest) updateNow(latest);
+}
+
+/* ---------- Sound details (raw measurements) ---------- */
+function picDetail(i) {
+  const j = shown.segOf[i], s = j >= 0 ? shown.an.segs[j] : null;
+  return { f: shown.an.frames[i], c: s ? s.c : 'S', guess: s ? shown.guesses[j] : '', t: (440 + i * A.HOP - shown.s0) / A.FS,
+           norm: shown.kind === 'example' ? chartScale() / shown.scale : 1 };
+}
+function liveGuess({ f, drawC }) { return drawC === 'S' ? '' : A.guessSound([f], { c: drawC, a: 0, b: 0 }, lang, chartScale()); }
+let lastDetail = null;
+function showDetails(d) {
+  if (lastDetail === d.f) return; lastDetail = d.f;
+  // inside a vowel/hum/buzz segment the voice is on, even when one frame is a bit irregular (creaky voice)
+  const f = d.f, voiced = 'VNZ'.includes(d.c) || (f.clar >= A.P.voicedClarity && d.c !== 'S'), sc = chartScale(), norm = d.norm || 1;
+  const row = (k, v, why) => `<div class="k">${k}</div><div class="v">${v}${why ? ` <span class="why">${why}</span>` : ''}</div>`;
+  let h = '';
+  if (d.t != null) h += row(L.dTime, `${d.t.toFixed(2)} s`);
+  h += row(L.dSound, `<b style="color:${d.c === 'S' ? 'var(--muted)' : COL[d.c]}">${L.cls[d.c]}</b>${d.guess ? ` &nbsp;<b style="font-size:26px">/${d.guess}/</b>` : ''}`);
+  h += row(L.dVoice, `<b>${voiced ? L.on : L.off}</b>${voiced && f.f0 ? ` · ${Math.round(f.f0)} Hz` : ''} · ${L.regular} ${Math.round(100 * Math.max(0, f.clar))}%`, L.voiceWhy);
+  h += row(L.dLoud, `<b>${f.db.toFixed(0)} dB</b>`);
+  if (f.fm && voiced) {
+    // F1/F2 of the example are shown as measured; the explanation compares with an adult male voice
+    h += row(`<span style="color:${F1C}">F1</span>`, `<b>${Math.round(f.fm[0])} Hz</b>`, L.f1Why(f.fm[0] * norm / sc));
+    h += row(`<span style="color:${F2C}">F2</span>`, `<b>${Math.round(f.fm[1])} Hz</b>`, L.f2Why(f.fm[1] * norm / sc));
+  } else { h += row('F1', '—'); h += row('F2', '—'); }
+  h += row(`<span style="color:${CENC}">${L.dCen}</span>`, `<b>${Math.round(f.cen)} Hz</b>`, L.cenWhy(f.cen));
+  h += `<div class="k">${L.dEnergy}</div><div>` + [f.s1, f.s2, f.s3, f.s4].map((v, i) =>
+    `<div class="ebar"><span>${L.bands[i]}</span><div class="meter"><div style="width:${Math.round(100 * v)}%"></div></div><span>${Math.round(100 * v)}%</span></div>`).join('') + '</div>';
+  $('#details').innerHTML = h;
+  drawMini(f, voiced);
+}
+const mini = $('#mini'), mctx = mini.getContext('2d');
+function drawMini(f, voiced) {
+  const W = mini.width, H = mini.height, ml = 36, mb = 24, pw = W - ml - 8, ph = H - mb - 8;
+  const xOf = hz => ml + hz / 8000 * pw;
+  let top = -99; for (let k = 2; k < 256; k++) top = Math.max(top, f.spec[k]);
+  top += 3; const yOfDb = db => 8 + Math.min(1, Math.max(0, (top - db) / 70)) * ph;
+  mctx.fillStyle = '#0c111b'; mctx.fillRect(0, 0, W, H);
+  [[0, 500], [500, 1500], [1500, 3500], [3500, 8000]].forEach(([a, b], i) => { mctx.fillStyle = i % 2 ? '#141c2e' : '#101726'; mctx.fillRect(xOf(a), 8, xOf(b) - xOf(a), ph); });
+  mctx.fillStyle = '#7d8aa6'; mctx.font = '11px system-ui'; mctx.textAlign = 'center';
+  [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000].forEach(hz => mctx.fillText(hz / 1000 + 'k', xOf(hz), H - 8));
+  mctx.textAlign = 'right'; [0, 20, 40, 60].forEach(dd => mctx.fillText('-' + dd, ml - 4, yOfDb(top - dd) + 4));
+  if (voiced && f.f0) {
+    mctx.setLineDash([2, 4]); mctx.strokeStyle = '#ffffff40'; mctx.lineWidth = 1;
+    for (let h = f.f0; h < 2500; h += f.f0) { mctx.beginPath(); mctx.moveTo(xOf(h), 8); mctx.lineTo(xOf(h), 8 + ph); mctx.stroke(); }
+    mctx.setLineDash([]);
+  }
+  mctx.strokeStyle = '#e6ecff'; mctx.lineWidth = 1.5; mctx.beginPath();
+  for (let k = 1; k < 256; k++) { const x = xOf(k * 31.25), y = yOfDb(f.spec[k]); k === 1 ? mctx.moveTo(x, y) : mctx.lineTo(x, y); }
+  mctx.stroke();
+  const vline = (hz, c, t) => { mctx.strokeStyle = c; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(xOf(hz), 8); mctx.lineTo(xOf(hz), 8 + ph); mctx.stroke(); mctx.fillStyle = c; mctx.textAlign = 'left'; mctx.font = 'bold 12px system-ui'; mctx.fillText(t, xOf(hz) + 3, 20); };
+  if (f.fm && voiced) { vline(f.fm[0], F1C, 'F1'); vline(f.fm[1], F2C, 'F2'); }
+  vline(f.cen, CENC, '⊙');
 }
 
 /* ---------- Live “now” panel ---------- */
@@ -557,7 +758,7 @@ function updateNow({ f, drawC, now }) {
   let sub = L.clsSub[k], sym = '';
   const fm = smoothedFormants();
   if (k === 'V' && fm) { const n = A.nearestVowel(lang, fm[0], fm[1], chartScale(), D.VSET[lang]); sub = L.vowelLike + ' ' + vLabel(n.v); sym = n.v; }
-  if (k === 'F') { sub = f.cen > 4500 ? L.sHiss : L.shHiss; sym = f.cen > 4500 ? 's' : 'ʃ'; }
+  if (k === 'F') { sym = A.guessSound([f], { c: 'F', a: 0, b: 0 }, lang, 1); sub = sym === 's' ? L.sHiss : L.shHiss; }
   if (k === 'P') sub = L.burstSub;
   if (k === 'N') sub = L.humSub;
   if (k === 'Z') sub = L.buzzSub;
@@ -574,17 +775,38 @@ function updateNow({ f, drawC, now }) {
 
 /* ---------- Vowel chart ---------- */
 const vc = $('#vowel'), vctx = vc.getContext('2d');
-const VX = { min: 650, max: 2600 }, VY = { min: 230, max: 950 };
+const VX = { min: 650, max: 2600 }, VY = { min: 230, max: 950 }, VM = { l: 58, r: 18, t: 40, b: 22 };
 function vpos(f1, f2) {
-  const s = chartScale(), W = vc.width, H = vc.height, m = 40;
-  const x = m + (Math.log(VX.max * s) - Math.log(f2)) / (Math.log(VX.max * s) - Math.log(VX.min * s)) * (W - 2 * m);
-  const y = m + (Math.log(f1) - Math.log(VY.min * s)) / (Math.log(VY.max * s) - Math.log(VY.min * s)) * (H - 2 * m);
+  const s = chartScale(), W = vc.width, H = vc.height;
+  const x = VM.l + (Math.log(VX.max * s) - Math.log(f2)) / (Math.log(VX.max * s) - Math.log(VX.min * s)) * (W - VM.l - VM.r);
+  const y = VM.t + (Math.log(f1) - Math.log(VY.min * s)) / (Math.log(VY.max * s) - Math.log(VY.min * s)) * (H - VM.t - VM.b);
   return [x, y];
 }
-let chartTarget = null, chartResult = null;
+let chartTarget = null, chartResult = null, chartExample = null;
+function drawAxes() {
+  const W = vc.width, H = vc.height, s = chartScale();
+  vctx.font = '11px system-ui'; vctx.fillStyle = '#7d8aa6'; vctx.strokeStyle = '#1d2740'; vctx.lineWidth = 1;
+  vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
+  for (const f2 of [3000, 2500, 2000, 1500, 1200, 1000, 800, 700]) {
+    if (f2 < VX.min * s * 0.98 || f2 > VX.max * s * 1.02) continue;
+    const [x] = vpos(500, f2);
+    vctx.beginPath(); vctx.moveTo(x, VM.t); vctx.lineTo(x, H - VM.b); vctx.stroke(); vctx.fillText(f2, x, VM.t - 8);
+  }
+  vctx.textAlign = 'right';
+  for (const f1 of [250, 300, 400, 500, 600, 700, 800, 1000]) {
+    if (f1 < VY.min * s * 0.98 || f1 > VY.max * s * 1.02) continue;
+    const [, y] = vpos(f1, 1500);
+    vctx.beginPath(); vctx.moveTo(VM.l, y); vctx.lineTo(W - VM.r, y); vctx.stroke(); vctx.fillText(f1, VM.l - 6, y);
+  }
+  vctx.fillStyle = F2C; vctx.font = 'bold 12px system-ui'; vctx.textAlign = 'center';
+  vctx.fillText(lang === 'nl' ? 'F2 (Hz):  ← tong voor · tong achter →' : 'F2 (Hz):  ← tongue front · tongue back →', (VM.l + W - VM.r) / 2, 12);
+  vctx.save(); vctx.translate(14, (VM.t + H - VM.b) / 2); vctx.rotate(-Math.PI / 2); vctx.fillStyle = F1C;
+  vctx.fillText(lang === 'nl' ? 'F1 (Hz):  ← mond dicht · mond open →' : 'F1 (Hz):  ← mouth closed · mouth open →', 0, 0); vctx.restore();
+}
 function drawVowelChart(now = performance.now()) {
   const W = vc.width, H = vc.height, s = chartScale();
   vctx.fillStyle = '#0c111b'; vctx.fillRect(0, 0, W, H);
+  drawAxes();
   vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
   // accent variants of the target as small dashed rings
   if (chartTarget) for (const [t1, t2] of D.VOW[lang][chartTarget].slice(1)) {
@@ -605,11 +827,11 @@ function drawVowelChart(now = performance.now()) {
     vctx.fillStyle = tgt ? '#fff' : '#b8c3da'; vctx.font = `${tgt ? 'bold 24' : '20'}px system-ui`; vctx.fillText(v, x, y - 2);
     vctx.font = '12px system-ui'; vctx.fillStyle = '#7d8aa6'; vctx.fillText(D.VHINT[lang][v] || '', x, y + (tgt ? 42 : 34));
   });
-  for (let i = 0; i < trail.length; i++) {
-    const p = trail[i], [x, y] = vpos(p.f1, p.f2), age = (now - p.t) / 1500, last = i === trail.length - 1;
-    vctx.beginPath(); vctx.arc(x, y, last ? 13 : 6, 0, 7);
-    vctx.fillStyle = last ? '#ffd23f' : `rgba(255,210,63,${Math.max(0, 0.6 * (1 - age))})`; vctx.fill();
-    if (last) { vctx.strokeStyle = '#000'; vctx.lineWidth = 2; vctx.stroke(); }
+  // example vowel: blue diamond
+  if (chartExample) {
+    const [x, y] = vpos(chartExample.f1, chartExample.f2);
+    vctx.beginPath(); vctx.moveTo(x, y - 13); vctx.lineTo(x + 13, y); vctx.lineTo(x, y + 13); vctx.lineTo(x - 13, y); vctx.closePath();
+    vctx.fillStyle = '#7fb2ff'; vctx.fill(); vctx.strokeStyle = '#000'; vctx.lineWidth = 2; vctx.stroke();
   }
   if (chartResult) {
     const [x, y] = vpos(chartResult.f1, chartResult.f2);
@@ -619,6 +841,13 @@ function drawVowelChart(now = performance.now()) {
     }
     vctx.beginPath(); vctx.arc(x, y, 14, 0, 7); vctx.fillStyle = '#ffd23f'; vctx.fill(); vctx.strokeStyle = '#000'; vctx.lineWidth = 3; vctx.stroke();
     vctx.fillStyle = '#000'; vctx.font = 'bold 14px system-ui'; vctx.fillText('★', x, y + 1);
+  }
+  // live / playback trail on top
+  for (let i = 0; i < trail.length; i++) {
+    const p = trail[i], [x, y] = vpos(p.f1, p.f2), age = (now - p.t) / 1500, last = i === trail.length - 1;
+    vctx.beginPath(); vctx.arc(x, y, last ? 11 : 5, 0, 7);
+    vctx.fillStyle = last ? '#ffffff' : `rgba(255,255,255,${Math.max(0, 0.6 * (1 - age))})`; vctx.fill();
+    if (last) { vctx.strokeStyle = '#000'; vctx.lineWidth = 2; vctx.stroke(); }
   }
 }
 
@@ -654,7 +883,7 @@ function showProgress() {
 }
 function showWord() {
   const w = list[idx]; if (!w) return;
-  if (shown) { forgetRecording(); clearSpec(); }
+  if (shown || pics.example) { forgetRecording(true); clearSpec(); }
   $('#word').textContent = w.w;
   $('#ipa').textContent = '/' + w.ph.join('') + '/';
   $('#chips').innerHTML = w.ph.map(p => chipHTML(p)).join('');
@@ -667,13 +896,42 @@ function showWord() {
 $('#cat').onchange = () => { idx = 0; buildList(); showWord(); };
 $('#prevBtn').onclick = () => { idx = (idx - 1 + list.length) % list.length; showWord(); };
 $('#nextBtn').onclick = () => { idx = (idx + 1) % list.length; showWord(); };
-$('#listenBtn').onclick = () => {
-  if (!window.speechSynthesis) return;
-  const u = new SpeechSynthesisUtterance(list[idx].w); u.lang = lang === 'nl' ? 'nl-NL' : 'en-US'; u.rate = 0.75;
-  const v = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith(u.lang.slice(0, 2)));
-  if (v) u.voice = v;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
-};
+/* Example: a recorded natural voice (ref/<lang>/<male|female>/<word>.mp3), analysed exactly like your own attempt.
+   Falls back to the browser's speech synthesis (without analysis) when the file is missing. */
+const EX_SCALE = { male: 1, female: 1.18 };
+$('#exVoice').value = store.get('st_exvoice', 'female');
+$('#exVoice').onchange = e => { store.set('st_exvoice', e.target.value); if (pics.example) loadExample(); };
+$('#listenBtn').onclick = () => loadExample();
+async function loadExample() {
+  const w = list[idx], sex = $('#exVoice').value;
+  if (recording) return;
+  await ensureCtx();
+  $('#status').textContent = L.exampleLoading;
+  try {
+    const res = await fetch(`ref/${lang}/${sex}/${encodeURIComponent(w.w)}.mp3`);
+    if (!res.ok) throw new Error(res.status);
+    const dec = await actx.decodeAudioData(await res.arrayBuffer());
+    if (list[idx] !== w) return;   // word changed meanwhile
+    const x16 = A.to16k(dec.getChannelData(0), dec.sampleRate);
+    const x = new Float32Array(4800 + x16.length + 4800); x.set(x16, 4800);   // 0.3 s of silence around it
+    const an = A.analyzeRecording(x, A.FS), sc = EX_SCALE[sex];
+    const m = A.measureVowel(an.frames, an.segs);
+    chartExample = m ? { f1: m[0] * chartScale() / sc, f2: m[1] * chartScale() / sc } : null;   // shifted to your voice
+    live = false; pending = [];
+    pics.example = makePic(x, an, 'example', sc);
+    showPic('example');
+    drawVowelChart();
+    $('#status').textContent = L.exampleShown;
+    play(1);
+  } catch (e) {
+    $('#status').textContent = L.ready;
+    if (!window.speechSynthesis) return;
+    const u = new SpeechSynthesisUtterance(w.w); u.lang = lang === 'nl' ? 'nl-NL' : 'en-US'; u.rate = 0.75;
+    const v = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith(u.lang.slice(0, 2)));
+    if (v) u.voice = v;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }
+}
 $('#speakBtn').onclick = async () => { if (recording) stopAttempt(); else startAttempt(); };
 
 async function startAttempt() {
@@ -746,12 +1004,13 @@ function finish(rec) {
     const c = calib(); c.push({ lang, target: tv, f1: res.meas[0], f2: res.meas[1] }); store.set('st_calib', c.slice(-40));
   }
   saveBest(w.w, res.total);
-  renderResult(res, rs, w);
   pending = [];
-  renderRecording(x, an);
+  pics.attempt = makePic(x, an, 'attempt', typeof res.scale === 'number' ? res.scale : chartScale());
+  showPic('attempt');
+  renderResult(res, rs, w, pics.attempt.guesses);
 }
 
-function renderResult(r, rs, w) {
+function renderResult(r, rs, w, guesses) {
   const col = r.total >= 75 ? 'var(--good)' : r.total >= 50 ? 'var(--ok)' : 'var(--bad)';
   $('#scoreNum').textContent = r.total;
   $('#scoreCircle').style.borderColor = col; $('#scoreNum').style.color = col;
@@ -760,12 +1019,8 @@ function renderResult(r, rs, w) {
   const bar = (name, v) => v == null ? '' : `<div class="bar"><span>${name}</span><div class="meter"><div style="width:${v}%;background:${v >= 75 ? 'var(--good)' : v >= 50 ? 'var(--ok)' : 'var(--bad)'}"></div></div><b>${v}</b></div>`;
   $('#bars').innerHTML = bar(L.barRec, r.rec) + bar(L.barSeq, r.seq) + bar(L.barVowel, r.vowel);
   $('#heard').innerHTML = rs.html;
-  $('#timeline').innerHTML = r.segs.length ? r.segs.map(s => {
-    let lab = L.cls[s.c];
-    if (s.c === 'P' && s.place) lab += ` (${s.place})`;
-    if (s.c === 'F') lab += s.cen > 4500 ? ' (s)' : ` (${L.shF})`;
-    return `<div style="background:${COL[s.c]}">${lab}</div>`;
-  }).join('') : '<span class="muted">—</span>';
+  $('#timeline').innerHTML = r.segs.length ? r.segs.map((s, j) =>
+    `<div style="background:${COL[s.c]}">${L.cls[s.c]}${guesses[j] ? ` /${guesses[j]}/` : ''}</div>`).join('') : '<span class="muted">—</span>';
   // feedback: recognition first, then sound issues (with a how-to tip for missing/wrong consonants)
   const fb = [];
   if (rs.first != null) fb.push(rs.exact ? L.fbPerfect : L.fbWrongWord(rs.first, w.w));

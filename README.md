@@ -17,6 +17,14 @@ Everything you say is shown **visually**, in Dutch or English.
   - a ✓ / ~ / ✗ per sound, concrete tips ("open your mouth a bit more", "the k was very soft…")
   - your vowel on the vowel map next to the target
   - the recording as a picture with the detected sounds, and playback (normal or slow) with a moving marker
+- **Example voice** – 🔊 plays a natural male or female voice saying the word and analyses it the same way,
+  so you can compare its picture and vowel position (◆) with your own attempt (★)
+- **Detected sounds in IPA** under the spectrogram (live and in recordings), guessed from the sound alone,
+  before matching to the word; F1/F2 lines drawn in the spectrogram
+- **Sound details** – the raw measurements behind each letter (voicing and pitch, loudness, F1/F2 with meaning,
+  spectral centre of gravity, energy per frequency band, and a mini spectrum). These follow the microphone,
+  the playback marker, or the mouse over a recording
+- Vowel map with Hz axes: F2 (tongue front/back) horizontally, F1 (mouth open/closed) vertically
 - With voice setting **Automatic**, the app learns the size of your vocal tract from your attempts,
   so the vowel targets fit your voice.
 
@@ -58,7 +66,9 @@ node test\run-tests.js --lang nl --noise room --verbose
 node test\run-tests.js --dump kat --voice Maarten-normal   # frame-by-frame features of one recording
 ```
 
-`test/explore*.js` print the statistics used to choose the thresholds.
+`test/explore*.js` print the statistics used to choose the thresholds (`explore-guess.js` for the IPA labels).
+
+The example recordings in `ref/` come from `python tools/make-reference-audio.py` (Edge TTS).
 
 Results (room noise):
 

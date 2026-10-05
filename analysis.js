@@ -34,7 +34,8 @@ const P = {
   leadBelowPeak: 25,
   closureHumBelow: 10,     // dB below the vowel: a hum this faint right before a burst is closure voicing
   weakBurstClick: -2,      // dB: onset click strength that may be a hidden unaspirated p/t/k
-  placeMargin: 1.0         // how much closer the best place must be than the next before giving place feedback
+  guessZ: 0.4, guessS: 0.8, guessSCen: 4900, guessShHigh: 0.95, guessShCen: 3300, guessXCen: 2200,   // sound guesses
+  placeMargin: 1.0        // how much closer the best place must be than the next before giving place feedback
 };
 
 const hamming = n => Float64Array.from({ length: n }, (_, i) => 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (n - 1)));
@@ -478,6 +479,32 @@ function nearestVowel(lang, f1, f2, scale, set) {
   for (const v of set || Object.keys(D.VOW[lang])) { const d = vowelMatch(lang, v, f1, f2, scale).d; if (d < bd) { bd = d; best = v; } }
   return { v: best, d: bd };
 }
+/* Best guess (IPA) of which sound a segment is, from the sound alone — not from the target word.
+   Shown under the spectrogram. Thresholds: test/explore-guess.js. */
+function guessSound(frames, s, lang, scale) {
+  const fr = frames.slice(s.a, s.b + 1), n = fr.length;
+  if (!n) return '?';
+  if (s.c === 'V') {
+    const mid = fr.slice(Math.floor(n * 0.25), Math.max(Math.ceil(n * 0.75), Math.floor(n * 0.25) + 1));
+    const fm = (mid.some(f => f.fm) ? mid : fr).filter(f => f.fm).map(f => f.fm);
+    if (!fm.length) return '';
+    const med = k => fm.map(x => x[k]).sort((a, b) => a - b)[fm.length >> 1];
+    return nearestVowel(lang, med(0), med(1), typeof scale === 'number' ? scale : 1.1, D.VSET[lang]).v;
+  }
+  if (s.c === 'P') return s.place || burstPlace(frames, s.a, s.b).place;
+  if (s.c === 'N') return 'm/n';
+  // energy-weighted spectral shape of the hiss
+  let w = 0, cen = 0, s3 = 0, s4 = 0;
+  for (const f of fr) { const e = Math.pow(10, f.db / 10); w += e; cen += e * f.cen; s3 += e * f.s3; s4 += e * f.s4; }
+  cen /= w; s3 /= w; s4 /= w;
+  if (s.c === 'Z') return s4 > P.guessZ ? 'z' : 'v';
+  // s: sharpest (centre of gravity ~5–6 kHz); ʃ: nearly all energy above 1.5 kHz but lower (~3.5–4.8 kHz); f: flatter, weaker
+  const sCen = lang === 'nl' ? P.guessSCen - 600 : P.guessSCen;   // the Dutch s is lower, and Dutch has (almost) no ʃ
+  if (cen > sCen || (s4 > P.guessS && cen > sCen - 500)) return 's';
+  if (s3 + s4 > P.guessShHigh && cen > P.guessShCen) return 'ʃ';
+  if (lang === 'nl' && cen < P.guessXCen) return 'x';
+  return 'f';
+}
 function measureVowel(frames, segs) {
   const vs = segs.filter(s => s.c === 'V').sort((a, b) => b.dur - a.dur)[0];
   if (!vs) return null;
@@ -562,6 +589,6 @@ function scoreAttempt(word, an, opts) {
 }
 
 const A = { FS, HOP, FRAME_MS, P, Resampler, to16k, Stream, analyzeSamples, labelFrame, levels, LiveLabeler,
-            segment, analyzeRecording, scoreAttempt, clsOf, align, nearestVowel, vowelMatch, measureVowel, speakerScale, estimateScale };
+            segment, analyzeRecording, scoreAttempt, clsOf, align, guessSound, nearestVowel, vowelMatch, measureVowel, speakerScale, estimateScale };
 if (typeof module !== 'undefined' && module.exports) module.exports = A; else root.SpeechAnalysis = A;
 })(this);
