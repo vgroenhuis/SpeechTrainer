@@ -1,0 +1,5 @@
+# Synthesised test audio (≈100 MB) — recreate with test/make-audio-windows.ps1 and test/make-audio-edge.py
+test/audio/
+# Local editor / assistant settings
+.claude/
+__pycache__/

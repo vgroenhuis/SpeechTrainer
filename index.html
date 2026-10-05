@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speech Trainer</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#182032; --panel2:#202a40; --text:#eef2fa; --muted:#9aa6bf; --line:#2c3854;
+  --good:#22c08a; --ok:#f5a524; --bad:#f0524f; --accent:#4f8ef7;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+h1{font-size:22px;margin:0 12px 0 0}
+.tabs{display:flex;gap:6px}
+.tabs button{font-size:17px}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.spacer{flex:1}
+label.sel{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:15px}
+select,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+button{cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.big{font-size:22px;padding:14px 28px;border-radius:14px}
+button.rec{background:var(--bad);border-color:var(--bad)}
+main{padding:16px 18px;max-width:1300px;margin:0 auto;display:grid;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+/* Explore */
+.now{display:grid;grid-template-columns:minmax(260px,1.3fr) 1fr 1fr;gap:16px}
+.tile{background:var(--panel2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
+.tile .cap{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+#nowLabel{font-size:40px;font-weight:700;line-height:1.1}
+#nowSub{font-size:18px;color:var(--muted)}
+#nowSym{font-size:64px;font-weight:700;align-self:flex-end;margin-top:-70px;opacity:.9}
+.voice{font-size:28px;font-weight:700}
+.meter{height:22px;background:#0c111b;border-radius:11px;overflow:hidden}
+.meter>div{height:100%;width:0;background:linear-gradient(90deg,var(--good),var(--ok),var(--bad));transition:width .05s}
+.guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.gcard{border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel2);transition:transform .1s,border-color .1s}
+.gcard b{font-size:18px}
+.gcard.on{transform:scale(1.03)}
+.gcard .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+/* Viz */
+.viz{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+canvas{width:100%;display:block;border-radius:10px;background:#000}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:14px;color:var(--muted);margin-top:8px}
+.legend span i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
+/* Words */
+.wordtop{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:12px}
+.wordcard{text-align:center;padding:10px 0 4px}
+#word{font-size:84px;font-weight:800;letter-spacing:.02em;line-height:1.1}
+#ipa{font-size:24px;color:var(--muted);margin-top:4px}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+.chip{min-width:58px;padding:6px 12px;border-radius:12px;font-size:26px;font-weight:700;color:#0b0f18;text-align:center;position:relative}
+.chip small{display:block;font-size:12px;font-weight:600;opacity:.8}
+.chip .mark{position:absolute;top:-10px;right:-8px;font-size:18px;background:var(--panel);border-radius:50%;width:26px;height:26px;line-height:26px;border:2px solid var(--line)}
+.controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#status{text-align:center;min-height:28px;margin-top:10px;font-size:18px;color:var(--muted)}
+.result{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start;margin-top:8px}
+.score{width:180px;height:180px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:10px solid var(--line);font-size:56px;font-weight:800}
+.score small{font-size:15px;font-weight:600;color:var(--muted)}
+.bars{display:grid;gap:8px;margin-bottom:12px}
+.bar{display:grid;grid-template-columns:170px 1fr 48px;gap:10px;align-items:center;font-size:15px}
+.bar .meter{height:16px}
+.fb{margin:0;padding-left:20px}
+.fb li{margin:6px 0}
+.timeline{display:flex;gap:3px;margin:8px 0 4px;flex-wrap:wrap}
+.timeline div{padding:3px 8px;border-radius:6px;font-size:14px;font-weight:700;color:#0b0f18}
+.warn{background:#3a2a10;border:1px solid var(--ok);border-radius:12px;padding:10px 14px}
+@media (max-width:900px){.now,.viz,.result{grid-template-columns:1fr}#word{font-size:60px}}
+</style>
+</head>
+<body>
+<header>
+  <h1 data-t="title">Speech Trainer</h1>
+  <div class="tabs">
+    <button id="tabExplore" class="on" data-t="tabExplore">Explore sounds</button>
+    <button id="tabWords" data-t="tabWords">Practise words</button>
+  </div>
+  <div class="spacer"></div>
+  <label class="sel"><span data-t="language">Language</span>
+    <select id="lang"><option value="nl">Nederlands</option><option value="en">English</option></select></label>
+  <label class="sel"><span data-t="voiceType">Voice</span>
+    <select id="voiceType">
+      <option value="auto" data-t="vAuto">Automatic</option>
+      <option value="1" data-t="vLow">Low (man)</option>
+      <option value="1.18" data-t="vMid">Medium (woman)</option>
+      <option value="1.32" data-t="vHigh">High (child)</option>
+    </select></label>
+</header>
+
+<main>
+  <div id="support" class="warn hidden"></div>
+
+  <!-- EXPLORE -->
+  <section id="explorePanel" class="panel">
+    <div class="wordtop">
+      <button id="micBtn" class="primary big" data-t="micStart">🎤 Start microphone</button>
+      <span class="muted" data-t="exploreHelp">Make a sound and watch what happens. Colours show the type of sound.</span>
+    </div>
+    <div class="now">
+      <div class="tile">
+        <div class="cap" data-t="nowHearing">Now hearing</div>
+        <div id="nowLabel">—</div>
+        <div id="nowSub"></div>
+        <div id="nowSym"></div>
+      </div>
+      <div class="tile">
+        <div class="cap" data-t="voiceCap">Voice (vocal folds)</div>
+        <div id="voiceState" class="voice">—</div>
+        <div id="pitchVal" class="muted"></div>
+        <div class="muted" style="font-size:14px" data-t="voiceHint"></div>
+      </div>
+      <div class="tile">
+        <div class="cap" data-t="loudCap">Loudness</div>
+        <div class="meter"><div id="loudBar"></div></div>
+        <div id="loudTxt" class="muted"></div>
+      </div>
+    </div>
+    <div class="guide" id="guide" style="margin-top:16px"></div>
+  </section>
+
+  <!-- WORDS -->
+  <section id="wordPanel" class="panel hidden">
+    <div class="wordtop">
+      <label class="sel"><span data-t="category">Practise</span> <select id="cat"></select></label>
+      <div class="spacer"></div>
+      <span id="progress" class="muted"></span>
+    </div>
+    <div class="wordcard">
+      <div id="word">—</div>
+      <div id="ipa"></div>
+      <div class="chips" id="chips"></div>
+      <div class="controls">
+        <button id="prevBtn" data-t="prev">◀ Previous</button>
+        <button id="listenBtn" data-t="listen">🔊 Listen</button>
+        <button id="speakBtn" class="primary big" data-t="speak">🎤 Say it</button>
+        <button id="nextBtn" data-t="next">Next ▶</button>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div id="result" class="result hidden">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div class="score" id="scoreCircle"><span id="scoreNum">0</span><small data-t="outOf">of 100</small></div>
+        <div id="stars" style="font-size:28px"></div>
+      </div>
+      <div>
+        <div class="bars" id="bars"></div>
+        <div id="heard" style="margin-bottom:6px"></div>
+        <div class="muted" style="font-size:14px" data-t="detected">Detected sounds (in order):</div>
+        <div class="timeline" id="timeline"></div>
+        <ul class="fb" id="feedback"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHARED VISUALS -->
+  <section class="viz">
+    <div class="panel">
+      <h2 data-t="specTitle"></h2>
+      <canvas id="spec" width="1000" height="292"></canvas>
+      <div class="legend" id="legend"></div>
+      <div id="playRow" class="controls hidden" style="justify-content:flex-start;margin-top:10px">
+        <button id="playBtn" class="primary" data-t="play">▶ Play recording</button>
+        <button id="slowBtn" data-t="playSlow">🐢 Slow</button>
+        <span class="muted" style="align-self:center;font-size:14px" data-t="playHint"></span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2 data-t="vowelTitle"></h2>
+      <canvas id="vowel" width="520" height="440"></canvas>
+      <div class="legend"><span data-t="vowelLegend"></span></div>
+    </div>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="analysis.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const A = window.SpeechAnalysis, D = window.SpeechData;
+
+/* ================= Interface text ================= */
+const T = {
+  en: {
+    title:'Speech Trainer', tabExplore:'Explore sounds', tabWords:'Practise words', language:'Language', voiceType:'Voice',
+    vAuto:'Automatic', vLow:'Low (man)', vMid:'Medium (woman)', vHigh:'High (child)',
+    micStart:'🎤 Start microphone', micStop:'⏹ Stop microphone',
+    exploreHelp:'Make a sound and watch what happens. Colours show the type of sound.',
+    nowHearing:'Now hearing', voiceCap:'Voice (vocal folds)', loudCap:'Loudness',
+    voiceHint:'Tip: put your fingers on your throat — you feel vibration when the voice is ON.',
+    voiceOn:'🟢 Voice ON', voiceOff:'⚪ Voice OFF', pitch:'Pitch', tooQuiet:'Very quiet', good:'Good', loud:'Loud',
+    category:'Practise', prev:'◀ Previous', next:'Next ▶', listen:'🔊 Listen', speak:'🎤 Say it', stop:'⏹ Stop',
+    play:'▶ Play recording', playSlow:'🐢 Slow', playStop:'⏹ Stop', playHint:'Tip: click in the picture to play from that point.',
+    outOf:'of 100', detected:'Detected sounds (in order):',
+    specTitle:'Sound picture (spectrogram) — low pitch at the bottom, high at the top',
+    vowelTitle:'Vowel map — where is your tongue?',
+    vowelLegend:'← front of mouth · back of mouth → | top: mouth closed · bottom: mouth open',
+    cls:{V:'Vowel',F:'Hiss (voiceless)',Z:'Buzz (voiced hiss)',P:'Burst',N:'Hum',S:'Silence',B:'Soft burst'},
+    clsSub:{V:'voice on, mouth open',F:'air only, no voice',Z:'air + voice',P:'short pop of air',N:'air through the nose',S:'',B:''},
+    sHiss:'sharp “s”', shHiss:'“sh” or “f”', burstSub:'p / t / k', humSub:'m / n / ng', buzzSub:'z / v', shF:'sh/f',
+    vowelLike:'sounds like', guide:[
+      ['V','Vowel','Voice ON, mouth open, air flows freely: a, e, i, o, u. Shows as a dot on the vowel map.'],
+      ['F','Hiss','Voice OFF, air pushed through a narrow gap: s, sh, f. Shows as noise high up in the picture.'],
+      ['Z','Buzz','Hiss + voice ON: z, v. Noise high up plus stripes low down.'],
+      ['P','Burst','Lips or tongue close, then release a puff: p, t, k. A short vertical line.'],
+      ['N','Hum','Mouth closed, air through the nose, voice ON: m, n, ng. Energy only at the bottom.']],
+    cats:{all:'All words',vowel:'Vowels',hiss:'Hiss sounds (s, sh, f, z)',burst:'Bursts (p, t, k)',hum:'Hums (m, n)'},
+    best:'Best', attempts:'attempts',
+    ready:'Press “Say it”, then say the word clearly.', listening:'🎤 Listening… say the word', analysing:'Analysing…',
+    noMic:'Microphone not available. Allow microphone access in the browser.',
+    noSR:'Word recognition is not available in this browser. Use Google Chrome or Microsoft Edge for the full word score. Sound analysis still works.',
+    fileWarn:'Opened as a file — word recognition may not work. Start the app with start.bat (opens http://localhost:8765).',
+    barRec:'Word recognised', barSeq:'Sounds in order', barVowel:'Vowel', heard:'Heard', nothingHeard:'The computer did not recognise a word.',
+    alsoHeard:'also possible', calibrated:n=>`Voice learned from ${n} words`,
+    fbPerfect:'Excellent! The word was recognised clearly.',
+    fbWrongWord:(h,w)=>`It sounded like “${h}” instead of “${w}”. Look at the coloured sounds below to see what was different.`,
+    noSpeech:()=>'I heard no speech. Move closer to the microphone and speak a bit louder.',
+    quiet:()=>'Your voice was quite soft. Try a little louder.',
+    missing:i=>`I did not detect the “${i.p}” sound.`,
+    weakBurst:i=>i.end ? `The “${i.p}” at the end was not released clearly. Let a small puff of air out at the end.` : `The “${i.p}” was very soft. Build up a little air and let it pop.`,
+    place:i=>`The “${i.p}” sounded more like “${i.heard}”.`,
+    extra:()=>'There were extra sounds. Try to say just the word, without sounds before or after.',
+    voicedNeed:i=>`“${i.p}” needs voice: hiss and hum at the same time. Feel the buzz in your throat.`,
+    voicelessNeed:i=>`“${i.p}” is without voice: only air, no vibration in your throat.`,
+    aspirated:i=>`The “${i.p}” had a strong puff of air, like p/t/k. Start your voice straight away.`,
+    vowelGood:i=>`Vowel “${i.p}” was good! ✓`,
+    vowelLike:(i,v,n)=>`Your vowel was closer to ${n} than to ${v}.`,
+    vOpen:()=>'Open your mouth a bit more (jaw lower).', vClose:()=>'Close your mouth a bit more (jaw higher).',
+    vFront:()=>'Move your tongue more to the front (spread your lips a little).', vBack:()=>'Pull your tongue back a bit (round your lips a little).',
+    vNone:()=>'I could not measure the vowel clearly. Hold the vowel a bit longer.',
+    tips:{
+      s:'Teeth close together, tongue tip behind the upper teeth, blow a thin sharp hiss. No voice.',
+      'ʃ':'Round your lips forward, tongue a bit back, blow a broad “shh”. No voice.',
+      f:'Upper teeth lightly on the lower lip, blow air. No voice.',
+      v:'Upper teeth on the lower lip, blow air AND use your voice.',
+      z:'Like “s”, but switch on your voice: it buzzes.',
+      p:'Close both lips, build up air, then release a puff. Hold your hand in front: you should feel it.',
+      t:'Tongue tip behind the upper teeth, build up air, release a puff.',
+      k:'Back of the tongue against the roof of the mouth, release a puff of air.',
+      b:'Close your lips and release, with voice from the start.', d:'Tongue tip up and release, with voice.', g:'Back of the tongue up and release, with voice.',
+      m:'Lips closed, hum through your nose. Feel your nose vibrate.', n:'Tongue tip up behind the teeth, hum through your nose.'
+    },
+    stars:['Keep trying!','Getting there','Good','Very good','Excellent!']
+  },
+  nl: {
+    title:'Spraaktrainer', tabExplore:'Klanken verkennen', tabWords:'Woorden oefenen', language:'Taal', voiceType:'Stem',
+    vAuto:'Automatisch', vLow:'Laag (man)', vMid:'Middel (vrouw)', vHigh:'Hoog (kind)',
+    micStart:'🎤 Microfoon aan', micStop:'⏹ Microfoon uit',
+    exploreHelp:'Maak een klank en kijk wat er gebeurt. De kleuren laten het soort klank zien.',
+    nowHearing:'Nu hoor ik', voiceCap:'Stem (stembanden)', loudCap:'Luidheid',
+    voiceHint:'Tip: leg je vingers op je keel — je voelt trilling als de stem AAN is.',
+    voiceOn:'🟢 Stem AAN', voiceOff:'⚪ Stem UIT', pitch:'Toonhoogte', tooQuiet:'Erg zacht', good:'Goed', loud:'Hard',
+    category:'Oefenen', prev:'◀ Vorige', next:'Volgende ▶', listen:'🔊 Luister', speak:'🎤 Zeg het', stop:'⏹ Stop',
+    play:'▶ Opname afspelen', playSlow:'🐢 Langzaam', playStop:'⏹ Stop', playHint:'Tip: klik in het beeld om vanaf dat punt af te spelen.',
+    outOf:'van 100', detected:'Gevonden klanken (op volgorde):',
+    specTitle:'Klankbeeld (spectrogram) — lage tonen onder, hoge tonen boven',
+    vowelTitle:'Klinkerkaart — waar is je tong?',
+    vowelLegend:'← voor in de mond · achter in de mond → | boven: mond dicht · onder: mond open',
+    cls:{V:'Klinker',F:'Sis (stemloos)',Z:'Zoem (stemhebbend)',P:'Plof',N:'Neusklank',S:'Stilte',B:'Zachte plof'},
+    clsSub:{V:'stem aan, mond open',F:'alleen lucht, geen stem',Z:'lucht + stem',P:'kort luchtstootje',N:'lucht door de neus',S:'',B:''},
+    sHiss:'scherpe “s”', shHiss:'“sj” of “f”', burstSub:'p / t / k', humSub:'m / n / ng', buzzSub:'z / v', shF:'sj/f',
+    vowelLike:'lijkt op', guide:[
+      ['V','Klinker','Stem AAN, mond open, lucht stroomt vrij: a, e, i, o, oe. Zie je als stip op de klinkerkaart.'],
+      ['F','Sis','Stem UIT, lucht door een smalle opening: s, sj, f, ch. Ruis hoog in het beeld.'],
+      ['Z','Zoem','Sis + stem AAN: z, v. Ruis hoog plus strepen onderin.'],
+      ['P','Plof','Lippen of tong dicht, dan een luchtstootje: p, t, k. Een korte verticale streep.'],
+      ['N','Neusklank','Mond dicht, lucht door de neus, stem AAN: m, n, ng. Alleen energie onderin.']],
+    cats:{all:'Alle woorden',vowel:'Klinkers',hiss:'Sisklanken (s, f, z, v)',burst:'Plofklanken (p, t, k)',hum:'Neusklanken (m, n)'},
+    best:'Beste', attempts:'pogingen',
+    ready:'Druk op “Zeg het” en zeg het woord duidelijk.', listening:'🎤 Ik luister… zeg het woord', analysing:'Bezig met analyseren…',
+    noMic:'Microfoon niet beschikbaar. Geef de browser toegang tot de microfoon.',
+    noSR:'Woordherkenning werkt niet in deze browser. Gebruik Google Chrome of Microsoft Edge voor de volledige woordscore. De klankanalyse werkt wel.',
+    fileWarn:'Geopend als bestand — woordherkenning werkt misschien niet. Start de app met start.bat (opent http://localhost:8765).',
+    barRec:'Woord herkend', barSeq:'Klanken op volgorde', barVowel:'Klinker', heard:'Gehoord', nothingHeard:'De computer heeft geen woord herkend.',
+    alsoHeard:'ook mogelijk', calibrated:n=>`Stem geleerd van ${n} woorden`,
+    fbPerfect:'Uitstekend! Het woord werd duidelijk herkend.',
+    fbWrongWord:(h,w)=>`Het klonk als “${h}” in plaats van “${w}”. Kijk naar de gekleurde klanken hieronder om te zien wat anders was.`,
+    noSpeech:()=>'Ik hoorde geen spraak. Ga dichter bij de microfoon zitten en praat iets harder.',
+    quiet:()=>'Je stem was vrij zacht. Probeer iets harder.',
+    missing:i=>`Ik heb de “${i.p}”-klank niet gevonden.`,
+    weakBurst:i=>i.end ? `De “${i.p}” aan het eind was niet goed hoorbaar. Laat aan het eind een klein stootje lucht los.` : `De “${i.p}” was erg zacht. Bouw wat lucht op en laat hem ploffen.`,
+    place:i=>`De “${i.p}” klonk meer als een “${i.heard}”.`,
+    extra:()=>'Er waren extra klanken. Probeer alleen het woord te zeggen, zonder geluid ervoor of erna.',
+    voicedNeed:i=>`“${i.p}” heeft stem nodig: sissen en zoemen tegelijk. Voel de trilling in je keel.`,
+    voicelessNeed:i=>`“${i.p}” is zonder stem: alleen lucht, geen trilling in je keel.`,
+    aspirated:i=>`De “${i.p}” had een sterk luchtstootje, zoals p/t/k. Zet je stem meteen aan.`,
+    vowelGood:i=>`Klinker “${i.p}” was goed! ✓`,
+    vowelLike:(i,v,n)=>`Je klinker leek meer op ${n} dan op ${v}.`,
+    vOpen:()=>'Doe je mond iets verder open (kaak lager).', vClose:()=>'Doe je mond iets meer dicht (kaak hoger).',
+    vFront:()=>'Breng je tong meer naar voren (lippen iets breder).', vBack:()=>'Trek je tong iets naar achteren (lippen iets ronder).',
+    vNone:()=>'Ik kon de klinker niet goed meten. Houd de klinker iets langer aan.',
+    tips:{
+      s:'Tanden dicht bij elkaar, tongpunt achter de boventanden, blaas een dun scherp sisje. Geen stem.',
+      'ʃ':'Lippen naar voren, tong iets naar achteren, blaas een brede “sj”. Geen stem.',
+      f:'Boventanden licht op de onderlip, blaas lucht. Geen stem.',
+      v:'Boventanden op de onderlip, blaas lucht én gebruik je stem.',
+      z:'Zoals “s”, maar zet je stem aan: het zoemt.',
+      p:'Beide lippen dicht, bouw lucht op, laat een stootje los. Houd je hand ervoor: je voelt het.',
+      t:'Tongpunt achter de boventanden, bouw lucht op, laat een stootje los.',
+      k:'Achterkant van de tong tegen het gehemelte, laat een stootje lucht los.',
+      b:'Lippen dicht en loslaten, met stem vanaf het begin.', d:'Tongpunt omhoog en loslaten, met stem.', g:'Achterkant tong omhoog en loslaten, met stem.',
+      m:'Lippen dicht, zoem door je neus. Voel je neus trillen.', n:'Tongpunt omhoog achter de tanden, zoem door je neus.'
+    },
+    stars:['Blijf oefenen!','Bijna','Goed','Heel goed','Uitstekend!']
+  }
+};
+const COL = { V:'#4f8ef7', F:'#f5a524', Z:'#c58af9', P:'#f0524f', N:'#22c08a', S:'#3a4560', B:'#8f9bb3' };
+
+/* ================= State ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const browserLang = (navigator.language || '').toLowerCase().startsWith('en') ? 'en' : 'nl';
+let lang = store.get('st_lang', browserLang), L = T[lang];
+let voiceSetting = store.get('st_voice2', 'auto');
+let mode = 'explore';
+let actx, tap, stream16, labeler;
+let micOn = false;      // explore mode microphone
+let live = false;       // analysing + drawing
+let recording = null;   // current word attempt
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const PRE = A.FS * 0.4, ring = new Float32Array(PRE); let ringPos = 0;   // 0.4 s of audio before "Say it"
+
+/* Vowel scale: learned from earlier attempts when "Automatic" (fallback: estimated from pitch per attempt). */
+function calib() { return store.get('st_calib', []); }
+function currentScale() {
+  if (voiceSetting !== 'auto') return parseFloat(voiceSetting);
+  return A.estimateScale(calib()) || 'auto';
+}
+const chartScale = () => { const s = currentScale(); return s === 'auto' ? 1.1 : s; };
+
+/* ================= UI text ================= */
+function applyLang() {
+  L = T[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-t]').forEach(el => { const v = L[el.dataset.t]; if (typeof v === 'string') el.textContent = v; });
+  $('#micBtn').textContent = micOn ? L.micStop : L.micStart;
+  $('#lang').value = lang;
+  $('#voiceType').value = voiceSetting;
+  const n = calib().length;
+  $('#voiceType').title = voiceSetting === 'auto' && n >= 5 ? L.calibrated(n) : '';
+  $('#guide').innerHTML = L.guide.map(([c, nm, d]) =>
+    `<div class="gcard" id="g${c}" style="border-color:${COL[c]}55"><b><span class="sw" style="background:${COL[c]}"></span>${nm}</b><div class="muted" style="font-size:15px">${d}</div></div>`).join('');
+  $('#legend').innerHTML = ['V','F','Z','P','N','S'].map(c => `<span><i style="background:${COL[c]}"></i>${L.cls[c]}</span>`).join('');
+  const cs = $('#cat'), prev = cs.value || 'all';
+  cs.innerHTML = Object.entries(L.cats).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  cs.value = prev;
+  buildList(); showWord();
+  checkSupport();
+  drawVowelChart();
+}
+function checkSupport() {
+  const msgs = [];
+  if (!SR) msgs.push(L.noSR);
+  else if (location.protocol === 'file:') msgs.push(L.fileWarn);
+  $('#support').innerHTML = msgs.join('<br>');
+  $('#support').classList.toggle('hidden', !msgs.length);
+}
+
+/* ================= Audio ================= */
+const TAP_SRC = `class Tap extends AudioWorkletProcessor {
+  constructor() { super(); this.b = new Float32Array(1024); this.n = 0; }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (ch) for (let i = 0; i < ch.length; i++) { this.b[this.n++] = ch[i]; if (this.n === this.b.length) { this.port.postMessage(this.b); this.b = new Float32Array(1024); this.n = 0; } }
+    return true;
+  }
+}
+registerProcessor('tap', Tap);`;
+
+async function ensureMic() {
+  if (actx) { if (actx.state === 'suspended') await actx.resume(); return true; }
+  let ms;
+  try { ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } }); }
+  catch (e) { alert(L.noMic); return false; }
+  actx = new AudioContext();
+  const src = actx.createMediaStreamSource(ms);
+  stream16 = new A.Stream(actx.sampleRate);
+  labeler = new A.LiveLabeler();
+  stream16.onSamples = x => {
+    for (let i = 0; i < x.length; i++) { ring[ringPos] = x[i]; ringPos = (ringPos + 1) % PRE; }
+    if (recording && !recording.finishing) recording.chunks.push(x);
+  };
+  try {
+    await actx.audioWorklet.addModule(URL.createObjectURL(new Blob([TAP_SRC], { type: 'application/javascript' })));
+    tap = new AudioWorkletNode(actx, 'tap');
+    tap.port.onmessage = e => onAudio(e.data);
+  } catch (e) {   // older browsers
+    tap = actx.createScriptProcessor(2048, 1, 1);
+    tap.onaudioprocess = e => onAudio(new Float32Array(e.inputBuffer.getChannelData(0)));
+  }
+  const mute = actx.createGain(); mute.gain.value = 0;
+  src.connect(tap); tap.connect(mute); mute.connect(actx.destination);
+  requestAnimationFrame(draw);
+  return true;
+}
+function onAudio(chunk) {
+  stream16.enabled = live;
+  for (const f of stream16.push(chunk)) onFrame(f);
+}
+
+/* ---------- Per 10 ms frame ---------- */
+let pending = [], latest = null, trail = [], noiseRun = 0, noiseRecolour = false, lastCls = 'S', holdUntil = 0;
+function onFrame(f) {
+  const c = labeler.label(f), now = performance.now();
+  // live: unvoiced noise shorter than 100 ms is drawn as a burst, recoloured as hiss when it lasts
+  let drawC = c;
+  if (c === 'F') { noiseRun++; if (noiseRun < 10) drawC = 'P'; else if (!noiseRecolour) { noiseRecolour = true; pending.push({ recolour: noiseRun - 1 }); } }
+  else { noiseRun = 0; noiseRecolour = false; }
+  pending.push({ spec: f.spec, c: drawC });
+  if (c === 'V' && f.fm) trail.push({ f1: f.fm[0], f2: f.fm[1], t: now });
+  latest = { f, c, drawC, now };
+  if (recording && !recording.finishing) {
+    recording.frames++;
+    if (c !== 'S') { recording.spoke = true; recording.silent = 0; } else recording.silent++;
+    // auto stop: 0.8 s of silence after speech, or 5 s in total
+    if ((recording.spoke && recording.silent > 80) || recording.frames > 500) stopAttempt();
+  }
+}
+
+/* ---------- Drawing (once per screen refresh) ---------- */
+const spec = $('#spec'), sctx = spec.getContext('2d');
+const SW = spec.width, SH = 256, STRIP = spec.height - SH, STEP = 2;
+const CMAP = [[0,0,0],[30,20,90],[120,30,140],[220,60,90],[250,150,40],[255,240,150]];
+function cmap(t) {
+  t = Math.min(1, Math.max(0, t)) * (CMAP.length - 1);
+  const i = Math.floor(t), fr = t - i, a = CMAP[i], b = CMAP[Math.min(i + 1, CMAP.length - 1)];
+  return [a[0] + (b[0] - a[0]) * fr, a[1] + (b[1] - a[1]) * fr, a[2] + (b[2] - a[2]) * fr];
+}
+let specTop = 20;
+function drawColumns() {
+  const cols = pending.filter(p => p.spec); if (!pending.length) return;
+  const n = cols.length;
+  if (n) sctx.drawImage(spec, -n * STEP, 0);
+  const img = sctx.createImageData(Math.max(1, n) * STEP, SH);
+  let k = 0;
+  for (const p of pending) {
+    if (p.recolour) { const back = n - k; sctx.fillStyle = COL.F; sctx.fillRect(SW - (back + p.recolour) * STEP, SH + 4, p.recolour * STEP, STRIP - 4); continue; }
+    let mx = -99; for (let b = 2; b < 256; b++) if (p.spec[b] > mx) mx = p.spec[b];
+    specTop = Math.max(mx, specTop - 0.05);
+    for (let y = 0; y < SH; y++) {
+      const [r, g, bl] = cmap((p.spec[255 - y] - (specTop - 70)) / 70);
+      for (let x = 0; x < STEP; x++) { const o = (y * n * STEP + k * STEP + x) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = bl; img.data[o + 3] = 255; }
+    }
+    sctx.fillStyle = COL[p.c]; sctx.fillRect(SW - (n - k) * STEP, SH + 4, STEP, STRIP - 4);
+    sctx.fillStyle = '#000'; sctx.fillRect(SW - (n - k) * STEP, SH, STEP, 4);
+    k++;
+  }
+  if (n) sctx.putImageData(img, SW - n * STEP, 0);
+  pending = [];
+}
+function clearSpec() {
+  sctx.fillStyle = '#000'; sctx.fillRect(0, 0, SW, spec.height);
+  sctx.fillStyle = '#ffffff55'; sctx.font = '13px system-ui';
+  [1000, 2000, 4000, 6000].forEach(hz => { const y = SH * (1 - hz / 8000); sctx.fillText(hz / 1000 + ' kHz', 4, y + 4); });
+}
+/* ---------- Recorded attempt: static picture + playback with a moving marker ---------- */
+let shown = null;   // { x (16 kHz samples), s0 (first sample shown), cols, colW, img (offscreen canvas) }
+let player = null;  // { src, t0, from, rate }
+function renderRecording(x, an) {
+  const fr = an.frames, segs = an.segs;
+  let a = 0, b = fr.length - 1;
+  if (segs.length) { a = Math.max(0, segs[0].a - 25); b = Math.min(fr.length - 1, segs[segs.length - 1].b + 25); }
+  const cols = b - a + 1, colW = SW / cols;
+  const img = document.createElement('canvas'); img.width = SW; img.height = spec.height;
+  const g = img.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, SW, spec.height);
+  let top = -99; for (let i = a; i <= b; i++) for (let k = 2; k < 256; k++) top = Math.max(top, fr[i].spec[k]);
+  const id = g.createImageData(SW, SH);
+  for (let px = 0; px < SW; px++) {
+    const f = fr[a + Math.min(cols - 1, Math.floor(px / colW))];
+    for (let y = 0; y < SH; y++) {
+      const [r, gg, bl] = cmap((f.spec[255 - y] - (top - 70)) / 70), o = (y * SW + px) * 4;
+      id.data[o] = r; id.data[o + 1] = gg; id.data[o + 2] = bl; id.data[o + 3] = 255;
+    }
+  }
+  g.putImageData(id, 0, 0);
+  g.fillStyle = COL.S; g.fillRect(0, SH + 4, SW, STRIP - 4);
+  g.font = 'bold 13px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const s of segs) {
+    const x0 = (s.a - a) * colW, w = (s.b - s.a + 1) * colW;
+    g.fillStyle = COL[s.c]; g.fillRect(x0, SH + 4, Math.max(2, w - 1), STRIP - 4);
+    const lab = s.c === 'P' ? (s.place || '') : '';
+    if (lab && w > 12) { g.fillStyle = '#0b0f18'; g.fillText(lab, x0 + w / 2, SH + 4 + (STRIP - 4) / 2); }
+  }
+  g.fillStyle = '#ffffff55'; g.font = '13px system-ui'; g.textAlign = 'left';
+  [1000, 2000, 4000, 6000].forEach(hz => g.fillText(hz / 1000 + ' kHz', 4, SH * (1 - hz / 8000) + 4));
+  // frame i is centred on sample 440 + 160·i (see analysis.js)
+  shown = { x, s0: Math.max(0, 440 + a * A.HOP - A.HOP / 2), a, cols, colW, img };
+  sctx.drawImage(img, 0, 0);
+  $('#playRow').classList.remove('hidden');
+}
+function forgetRecording() { stopPlayback(); shown = null; $('#playRow').classList.add('hidden'); }
+const sampleToX = n => ((n - 440) / A.HOP - shown.a + 0.5) * shown.colW;
+function stopPlayback() {
+  if (player) { try { player.src.stop(); } catch (e) {} player = null; }
+  $('#playBtn').textContent = L.play; $('#slowBtn').textContent = L.playSlow;
+  if (shown && !live) sctx.drawImage(shown.img, 0, 0);
+}
+async function play(rate, fromSample) {
+  if (!shown) return;
+  const was = player && player.rate === rate && fromSample == null;
+  stopPlayback(); if (was) return;   // second press = stop
+  if (!(await ensureMic())) return;
+  const from = fromSample == null ? shown.s0 : Math.max(0, Math.round(fromSample));
+  const data = shown.x.subarray(from), buf = actx.createBuffer(1, data.length, A.FS);
+  buf.copyToChannel(data, 0);
+  const src = actx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate; src.connect(actx.destination);
+  src.onended = () => { if (player && player.src === src) stopPlayback(); };
+  src.start();
+  player = { src, t0: actx.currentTime, from, rate };
+  (rate === 1 ? $('#playBtn') : $('#slowBtn')).textContent = L.playStop;
+}
+function drawMarker() {
+  if (!player || !shown) return;
+  const n = player.from + (actx.currentTime - player.t0) * player.rate * A.FS, x = sampleToX(n);
+  if (x > SW) return stopPlayback();
+  sctx.drawImage(shown.img, 0, 0);
+  sctx.fillStyle = '#ffffff'; sctx.fillRect(x - 1, 0, 3, spec.height);
+}
+$('#playBtn').onclick = () => play(1);
+$('#slowBtn').onclick = () => play(0.5);
+spec.addEventListener('click', e => {
+  if (!shown || live) return;
+  const r = spec.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * SW;
+  play(1, 440 + (x / shown.colW + shown.a - 0.5) * A.HOP);
+});
+
+function draw(now) {
+  requestAnimationFrame(draw);
+  drawMarker();
+  if (!live && !pending.length) return;
+  drawColumns();
+  while (trail.length && now - trail[0].t > 1500) trail.shift();
+  drawVowelChart(now);
+  if (latest) updateNow(latest);
+}
+
+/* ---------- Live “now” panel ---------- */
+const vLabel = v => `${v}  (“${D.VHINT[lang][v] || v}”)`;
+function smoothedFormants() {
+  const r = trail.slice(-5); if (!r.length) return null;
+  const med = k => r.map(x => x[k]).sort((a, b) => a - b)[r.length >> 1];
+  return [med('f1'), med('f2')];
+}
+function updateNow({ f, drawC, now }) {
+  if (mode !== 'explore') return;
+  if (drawC !== 'S') { lastCls = drawC; holdUntil = now + 250; }
+  const k = now < holdUntil ? lastCls : 'S';
+  let sub = L.clsSub[k], sym = '';
+  const fm = smoothedFormants();
+  if (k === 'V' && fm) { const n = A.nearestVowel(lang, fm[0], fm[1], chartScale(), D.VSET[lang]); sub = L.vowelLike + ' ' + vLabel(n.v); sym = n.v; }
+  if (k === 'F') { sub = f.cen > 4500 ? L.sHiss : L.shHiss; sym = f.cen > 4500 ? 's' : 'ʃ'; }
+  if (k === 'P') sub = L.burstSub;
+  if (k === 'N') sub = L.humSub;
+  if (k === 'Z') sub = L.buzzSub;
+  $('#nowLabel').textContent = L.cls[k]; $('#nowLabel').style.color = k === 'S' ? 'var(--muted)' : COL[k];
+  $('#nowSub').textContent = sub; $('#nowSym').textContent = sym; $('#nowSym').style.color = COL[k];
+  document.querySelectorAll('.gcard').forEach(g => { const on = g.id === 'g' + k; g.classList.toggle('on', on); g.style.borderColor = on ? COL[k] : COL[g.id.slice(1)] + '55'; });
+  const voiced = f.clar > A.P.voicedClarity && latest.c !== 'S';
+  $('#voiceState').textContent = voiced ? L.voiceOn : L.voiceOff;
+  $('#pitchVal').textContent = voiced ? `${L.pitch}: ${Math.round(f.f0)} Hz` : '';
+  const pct = Math.min(100, Math.max(0, (f.db + 60) / 50 * 100));
+  $('#loudBar').style.width = pct + '%';
+  $('#loudTxt').textContent = latest.c === 'S' ? '' : pct < 35 ? L.tooQuiet : pct < 85 ? L.good : L.loud;
+}
+
+/* ---------- Vowel chart ---------- */
+const vc = $('#vowel'), vctx = vc.getContext('2d');
+const VX = { min: 650, max: 2600 }, VY = { min: 230, max: 950 };
+function vpos(f1, f2) {
+  const s = chartScale(), W = vc.width, H = vc.height, m = 40;
+  const x = m + (Math.log(VX.max * s) - Math.log(f2)) / (Math.log(VX.max * s) - Math.log(VX.min * s)) * (W - 2 * m);
+  const y = m + (Math.log(f1) - Math.log(VY.min * s)) / (Math.log(VY.max * s) - Math.log(VY.min * s)) * (H - 2 * m);
+  return [x, y];
+}
+let chartTarget = null, chartResult = null;
+function drawVowelChart(now = performance.now()) {
+  const W = vc.width, H = vc.height, s = chartScale();
+  vctx.fillStyle = '#0c111b'; vctx.fillRect(0, 0, W, H);
+  vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
+  // accent variants of the target as small dashed rings
+  if (chartTarget) for (const [t1, t2] of D.VOW[lang][chartTarget].slice(1)) {
+    const [x, y] = vpos(t1 * s, t2 * s);
+    vctx.setLineDash([4, 4]); vctx.strokeStyle = '#4f8ef7'; vctx.lineWidth = 2; vctx.beginPath(); vctx.arc(x, y, 22, 0, 7); vctx.stroke(); vctx.setLineDash([]);
+  }
+  // vowel circles; neighbours that would overlap (e.g. Dutch e/ɪ, o/ɔ) are pushed apart a little
+  const pos = D.VSET[lang].map(v => { const [t1, t2] = D.VOW[lang][v][0]; return vpos(t1 * s, t2 * s); });
+  for (let it = 0; it < 20; it++) for (let i = 0; i < pos.length; i++) for (let j = i + 1; j < pos.length; j++) {
+    const dx = pos[j][0] - pos[i][0], dy = pos[j][1] - pos[i][1], d = Math.hypot(dx, dy) || 1;
+    if (d < 46) { const m = (46 - d) / 2, ux = dx / d, uy = dy / d; pos[i][0] -= ux * m; pos[i][1] -= uy * m; pos[j][0] += ux * m; pos[j][1] += uy * m; }
+  }
+  D.VSET[lang].forEach((v, vi) => {
+    const [x, y] = pos[vi], tgt = v === chartTarget;
+    vctx.beginPath(); vctx.arc(x, y, tgt ? 30 : 22, 0, 7);
+    vctx.fillStyle = tgt ? '#4f8ef744' : '#1b2438'; vctx.fill();
+    vctx.strokeStyle = tgt ? '#4f8ef7' : '#33405e'; vctx.lineWidth = tgt ? 4 : 1.5; vctx.stroke();
+    vctx.fillStyle = tgt ? '#fff' : '#b8c3da'; vctx.font = `${tgt ? 'bold 24' : '20'}px system-ui`; vctx.fillText(v, x, y - 2);
+    vctx.font = '12px system-ui'; vctx.fillStyle = '#7d8aa6'; vctx.fillText(D.VHINT[lang][v] || '', x, y + (tgt ? 42 : 34));
+  });
+  for (let i = 0; i < trail.length; i++) {
+    const p = trail[i], [x, y] = vpos(p.f1, p.f2), age = (now - p.t) / 1500, last = i === trail.length - 1;
+    vctx.beginPath(); vctx.arc(x, y, last ? 13 : 6, 0, 7);
+    vctx.fillStyle = last ? '#ffd23f' : `rgba(255,210,63,${Math.max(0, 0.6 * (1 - age))})`; vctx.fill();
+    if (last) { vctx.strokeStyle = '#000'; vctx.lineWidth = 2; vctx.stroke(); }
+  }
+  if (chartResult) {
+    const [x, y] = vpos(chartResult.f1, chartResult.f2);
+    if (chartResult.t1) {
+      const [tx, ty] = vpos(chartResult.t1, chartResult.t2);
+      vctx.setLineDash([6, 6]); vctx.strokeStyle = '#ffd23f'; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(x, y); vctx.lineTo(tx, ty); vctx.stroke(); vctx.setLineDash([]);
+    }
+    vctx.beginPath(); vctx.arc(x, y, 14, 0, 7); vctx.fillStyle = '#ffd23f'; vctx.fill(); vctx.strokeStyle = '#000'; vctx.lineWidth = 3; vctx.stroke();
+    vctx.fillStyle = '#000'; vctx.font = 'bold 14px system-ui'; vctx.fillText('★', x, y + 1);
+  }
+}
+
+/* ================= Explore mode ================= */
+$('#micBtn').onclick = async () => {
+  if (micOn) { micOn = false; live = false; }
+  else { if (!(await ensureMic())) return; forgetRecording(); micOn = true; live = true; chartResult = null; }
+  $('#micBtn').textContent = micOn ? L.micStop : L.micStart;
+};
+
+/* ================= Word mode ================= */
+let list = [], idx = 0;
+function buildList() {
+  const cat = $('#cat').value || 'all';
+  list = D.WORDS[lang].filter(w => cat === 'all' || w.cats.includes(cat));
+  if (idx >= list.length) idx = 0;
+}
+const bestOf = w => store.get('st_best', {})[lang + ':' + w] || null;
+function saveBest(w, s) {
+  const o = store.get('st_best', {}), k = lang + ':' + w;
+  o[k] = { s: Math.max(s, (o[k] || {}).s || 0), n: ((o[k] || {}).n || 0) + 1 };
+  store.set('st_best', o);
+}
+function chipHTML(p, mark) {
+  const c = A.clsOf(p), name = L.cls[c];
+  const hint = c === 'V' ? (D.VHINT[lang][p] || '') : name;
+  const mc = mark === '✓' ? 'var(--good)' : mark === '✗' ? 'var(--bad)' : 'var(--ok)';
+  return `<div class="chip" style="background:${COL[c]}" title="${name}">${p}<small>${hint}</small>${mark ? `<span class="mark" style="color:${mc}">${mark}</span>` : ''}</div>`;
+}
+function showProgress() {
+  const b = bestOf(list[idx].w);
+  $('#progress').textContent = `${idx + 1} / ${list.length}` + (b ? ` · ${L.best}: ${b.s} (${b.n} ${L.attempts})` : '');
+}
+function showWord() {
+  const w = list[idx]; if (!w) return;
+  if (shown) { forgetRecording(); clearSpec(); }
+  $('#word').textContent = w.w;
+  $('#ipa').textContent = '/' + w.ph.join('') + '/';
+  $('#chips').innerHTML = w.ph.map(p => chipHTML(p)).join('');
+  showProgress();
+  chartTarget = mode === 'words' ? (w.ph.find(p => A.clsOf(p) === 'V') || null) : null; chartResult = null;
+  $('#result').classList.add('hidden');
+  $('#status').textContent = L.ready;
+  drawVowelChart();
+}
+$('#cat').onchange = () => { idx = 0; buildList(); showWord(); };
+$('#prevBtn').onclick = () => { idx = (idx - 1 + list.length) % list.length; showWord(); };
+$('#nextBtn').onclick = () => { idx = (idx + 1) % list.length; showWord(); };
+$('#listenBtn').onclick = () => {
+  if (!window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(list[idx].w); u.lang = lang === 'nl' ? 'nl-NL' : 'en-US'; u.rate = 0.75;
+  const v = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith(u.lang.slice(0, 2)));
+  if (v) u.voice = v;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+};
+$('#speakBtn').onclick = async () => { if (recording) stopAttempt(); else startAttempt(); };
+
+async function startAttempt() {
+  if (!(await ensureMic())) return;
+  forgetRecording();
+  clearSpec(); trail = []; chartResult = null; drawVowelChart();
+  // keep the 0.4 s before the button press: the analysis needs a bit of silence to measure the room noise
+  const pre = new Float32Array(PRE); pre.set(ring.subarray(ringPos)); pre.set(ring.subarray(0, ringPos), PRE - ringPos);
+  recording = { chunks: [pre], frames: 0, silent: 0, spoke: false, results: null, recErr: null, recDone: !SR, word: list[idx] };
+  if (SR) {
+    try {
+      const r = new SR(); r.lang = lang === 'nl' ? 'nl-NL' : 'en-US'; r.interimResults = false; r.maxAlternatives = 5; r.continuous = false;
+      const rec = recording;
+      r.onresult = e => { rec.results = [...e.results[0]].map(a => ({ t: a.transcript.trim().toLowerCase().replace(/[.,!?]/g, ''), c: a.confidence })); };
+      r.onerror = e => { rec.recErr = e.error; };
+      r.onend = () => { rec.recDone = true; if (rec.finishing) finish(rec); };
+      r.start(); recording.sr = r;
+    } catch (e) { recording.recDone = true; }
+  }
+  live = true;
+  $('#speakBtn').textContent = L.stop; $('#speakBtn').classList.add('rec');
+  $('#status').textContent = L.listening;
+  $('#result').classList.add('hidden');
+}
+function stopAttempt() {
+  const rec = recording; if (!rec || rec.finishing) return;
+  rec.finishing = true; live = mode === 'explore' && micOn; recording = null;
+  $('#speakBtn').textContent = L.speak; $('#speakBtn').classList.remove('rec');
+  $('#status').textContent = L.analysing;
+  if (rec.sr && !rec.recDone) { try { rec.sr.stop(); } catch (e) {} setTimeout(() => finish(rec), 2500); }
+  else setTimeout(() => finish(rec), 0);
+}
+
+/* ---------- Scoring ---------- */
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function recognitionScore(rec, w) {
+  const unusable = ['not-allowed', 'network', 'service-not-allowed', 'language-not-supported'];
+  if (!SR || unusable.includes(rec.recErr)) return { score: null, html: '', exact: false, first: null };
+  const alts = rec.results || [];
+  if (!alts.length) return { score: 0, html: L.nothingHeard, exact: false, first: null };
+  const tw = w.w.toLowerCase();
+  let best = 0;
+  alts.forEach((a, k) => {
+    const words = a.t.split(/\s+/), exact = words.includes(tw);
+    const sim = Math.max(...words.map(x => 1 - lev(x, tw) / Math.max(x.length, tw.length)), 1 - lev(a.t, tw) / Math.max(a.t.length, tw.length));
+    const conf = a.c > 0 ? a.c : 0.8;
+    best = Math.max(best, exact ? (k === 0 ? 70 + 30 * conf : 75 - 8 * k) : Math.max(0, sim) * 55);
+  });
+  const first = alts[0].t;
+  return { score: Math.round(best), first, exact: first.split(/\s+/).includes(tw),
+    html: `${L.heard}: <b>“${first}”</b>` + (alts.length > 1 ? ` <span class="muted">(${L.alsoHeard}: ${alts.slice(1, 4).map(a => a.t).join(', ')})</span>` : '') };
+}
+function finish(rec) {
+  if (rec.done) return; rec.done = true;
+  const w = rec.word;
+  let n = 0; rec.chunks.forEach(c => n += c.length);
+  const x = new Float32Array(n); let o = 0; rec.chunks.forEach(c => { x.set(c, o); o += c.length; });
+  const an = A.analyzeRecording(x, A.FS);
+  const rs = recognitionScore(rec, w);
+  const res = A.scoreAttempt(w, an, { lang, scale: currentScale(), recScore: rs.score });
+  // learn the speaker's vowel scale from attempts that were clearly the right word
+  const tv = w.ph.find(p => A.clsOf(p) === 'V');
+  if (res.meas && tv && (rs.exact || (rs.score == null && res.total >= 70))) {
+    const c = calib(); c.push({ lang, target: tv, f1: res.meas[0], f2: res.meas[1] }); store.set('st_calib', c.slice(-40));
+  }
+  saveBest(w.w, res.total);
+  renderResult(res, rs, w);
+  pending = [];
+  renderRecording(x, an);
+}
+
+function renderResult(r, rs, w) {
+  const col = r.total >= 75 ? 'var(--good)' : r.total >= 50 ? 'var(--ok)' : 'var(--bad)';
+  $('#scoreNum').textContent = r.total;
+  $('#scoreCircle').style.borderColor = col; $('#scoreNum').style.color = col;
+  const st = r.total >= 90 ? 4 : r.total >= 75 ? 3 : r.total >= 55 ? 2 : r.total >= 35 ? 1 : 0;
+  $('#stars').innerHTML = '★'.repeat(st + 1) + '<span style="opacity:.25">' + '★'.repeat(4 - st) + '</span><div style="font-size:16px;text-align:center">' + L.stars[st] + '</div>';
+  const bar = (name, v) => v == null ? '' : `<div class="bar"><span>${name}</span><div class="meter"><div style="width:${v}%;background:${v >= 75 ? 'var(--good)' : v >= 50 ? 'var(--ok)' : 'var(--bad)'}"></div></div><b>${v}</b></div>`;
+  $('#bars').innerHTML = bar(L.barRec, r.rec) + bar(L.barSeq, r.seq) + bar(L.barVowel, r.vowel);
+  $('#heard').innerHTML = rs.html;
+  $('#timeline').innerHTML = r.segs.length ? r.segs.map(s => {
+    let lab = L.cls[s.c];
+    if (s.c === 'P' && s.place) lab += ` (${s.place})`;
+    if (s.c === 'F') lab += s.cen > 4500 ? ' (s)' : ` (${L.shF})`;
+    return `<div style="background:${COL[s.c]}">${lab}</div>`;
+  }).join('') : '<span class="muted">—</span>';
+  // feedback: recognition first, then sound issues (with a how-to tip for missing/wrong consonants)
+  const fb = [];
+  if (rs.first != null) fb.push(rs.exact ? L.fbPerfect : L.fbWrongWord(rs.first, w.w));
+  for (const i of r.issues) {
+    if (i.k === 'vowelLike') { fb.push(L.vowelLike(i, vLabel(i.p), vLabel(i.near))); continue; }
+    const f = L[i.k]; if (typeof f !== 'function') continue;
+    let txt = f(i);
+    if (['missing', 'place', 'weakBurst', 'aspirated'].includes(i.k) && L.tips[i.p]) txt += ' ' + L.tips[i.p];
+    fb.push(txt);
+  }
+  $('#feedback').innerHTML = fb.map(x => `<li>${x}</li>`).join('');
+  $('#chips').innerHTML = w.ph.map((p, i) => chipHTML(p, r.marks[i])).join('');
+  if (r.meas) {
+    const tv = w.ph.find(p => A.clsOf(p) === 'V');
+    const m = tv ? A.vowelMatch(lang, tv, r.meas[0], r.meas[1], typeof r.scale === 'number' ? r.scale : chartScale()) : {};
+    chartResult = { f1: r.meas[0], f2: r.meas[1], t1: m.t1, t2: m.t2 };
+  }
+  $('#result').classList.remove('hidden');
+  $('#status').textContent = '';
+  showProgress();
+  drawVowelChart();
+}
+
+/* ================= Tabs & settings ================= */
+function setMode(m) {
+  mode = m;
+  $('#tabExplore').classList.toggle('on', m === 'explore'); $('#tabWords').classList.toggle('on', m === 'words');
+  $('#explorePanel').classList.toggle('hidden', m !== 'explore'); $('#wordPanel').classList.toggle('hidden', m !== 'words');
+  if (recording) stopAttempt();
+  if (m === 'explore') { chartTarget = null; chartResult = null; live = micOn; }
+  else { live = false; showWord(); }
+  drawVowelChart();
+}
+$('#tabExplore').onclick = () => setMode('explore');
+$('#tabWords').onclick = () => setMode('words');
+$('#lang').onchange = e => { lang = e.target.value; store.set('st_lang', lang); idx = 0; applyLang(); };
+$('#voiceType').onchange = e => { voiceSetting = e.target.value; store.set('st_voice2', voiceSetting); applyLang(); };
+
+clearSpec();
+applyLang();
+</script>
+</body>
+</html>
