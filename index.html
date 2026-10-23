@@ -81,6 +81,15 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
 .ebar .meter{height:14px}
 .ebar .meter>div{background:var(--accent)}
 #picSwitch button{padding:5px 12px;font-size:15px}
+/* letter rows under the sound picture (same time axis) */
+.letters{display:grid;gap:3px;margin-top:3px}
+.ltrack{position:relative;height:30px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.ltrack:empty{display:none}
+.ltrack .cap{position:absolute;right:6px;top:1px;font-size:11px;color:var(--muted);pointer-events:none;white-space:nowrap}
+.ltrack .msg{position:absolute;left:8px;top:6px;font-size:14px;color:var(--muted);white-space:nowrap}
+.ltrack .lt{position:absolute;top:9px;transform:translateX(-50%);font-size:18px;font-weight:700;line-height:1;white-space:nowrap}
+.ltrack .ls{position:absolute;top:4px;bottom:4px;border-radius:4px;color:#0b0f18;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ltrack .ls.miss{background:none!important;color:var(--muted);border:1px dashed var(--line)}
 .sylsep{align-self:center;font-size:30px;font-weight:800;color:var(--muted);margin:0 2px}
 @media (max-width:900px){.now,.viz,.result,.details{grid-template-columns:1fr}#word{font-size:60px}}
 </style>
@@ -182,8 +191,13 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
           <button id="picAttempt" data-t="picAttempt">My attempt</button>
         </div>
         <label class="sel"><input type="checkbox" id="showFm" checked> <span data-t="showFm">F1/F2 lines</span></label>
+        <label class="sel" id="lettersOptBox"><input type="checkbox" id="showLetters"> <span data-t="lettersOpt">Letters</span></label>
       </div>
       <canvas id="spec" width="1000" height="292"></canvas>
+      <div id="letters" class="letters hidden">
+        <div class="ltrack" id="ltNet"></div>
+        <div class="ltrack" id="ltWord"></div>
+      </div>
       <div class="legend" id="legend"></div>
       <div id="playRow" class="controls hidden" style="justify-content:flex-start;margin-top:10px">
         <button id="playBtn" class="primary" data-t="play">▶ Play recording</button>
@@ -215,6 +229,7 @@ h2{font-size:17px;margin:0 0 8px;color:var(--muted);font-weight:600}
 
 <script src="data.js"></script>
 <script src="analysis.js"></script>
+<script src="phonemes.js"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
@@ -248,6 +263,12 @@ const T = {
     miniLegend:'Spectrum at this moment · cyan = F1, green = F2, orange = centre of gravity, dashed = voice pitch harmonics',
     outOf:'of 100', detected:'Detected sounds (in order):',
     specTitle:'Sound picture (spectrogram) — low pitch at the bottom, high at the top',
+    lettersOpt:'Letters', lettersTip:'Show which letters (sounds) a neural recogniser hears in a recording',
+    lettersAsk:'Letter recognition uses a neural network that runs in your browser. It is downloaded once (about 320 MB) and then kept by the browser. Recognising a word takes a few seconds. Download it now?',
+    lettersLoading:p => `Downloading the letter recogniser… ${p} %`, lettersStarting:'Starting the letter recogniser…', lettersBusy:'Recognising letters…',
+    lettersFail:e => `Letter recognition did not work: ${e}`, lettersNone:'No letters heard',
+    lettersNetCap:'letters heard (neural network, independent of the word)', lettersWordCap:w => `sounds of “${w}” placed on the recording`,
+    lettersWordCapRec:w => `speech recognition heard “${w}”: its sounds placed on the recording`, lettersMiss:'not clearly found in the recording',
     vowelTitle:'Vowel map — where is your tongue?',
     vowelLegend:'← front of mouth · back of mouth → | top: mouth closed · bottom: mouth open',
     cls:{V:'Vowel',F:'Hiss (voiceless)',Z:'Buzz (voiced hiss)',P:'Burst',N:'Hum',S:'Silence',B:'Soft burst',W:'Weak vowel',L:'Vowel-like',H:'Breath'},
@@ -323,6 +344,12 @@ const T = {
     miniLegend:'Spectrum op dit moment · cyaan = F1, groen = F2, oranje = zwaartepunt, gestreept = boventonen van de stem',
     outOf:'van 100', detected:'Gevonden klanken (op volgorde):',
     specTitle:'Klankbeeld (spectrogram) — lage tonen onder, hoge tonen boven',
+    lettersOpt:'Letters', lettersTip:'Laat zien welke letters (klanken) een neuraal netwerk in een opname hoort',
+    lettersAsk:'Letterherkenning gebruikt een neuraal netwerk dat in je browser draait. Het wordt één keer gedownload (ongeveer 320 MB) en daarna door de browser bewaard. Een woord herkennen duurt een paar seconden. Nu downloaden?',
+    lettersLoading:p => `Letterherkenner downloaden… ${p} %`, lettersStarting:'Letterherkenner starten…', lettersBusy:'Letters herkennen…',
+    lettersFail:e => `Letterherkenning lukte niet: ${e}`, lettersNone:'Geen letters gehoord',
+    lettersNetCap:'gehoorde letters (neuraal netwerk, los van het woord)', lettersWordCap:w => `klanken van “${w}” op de opname gelegd`,
+    lettersWordCapRec:w => `spraakherkenning hoorde “${w}”: de klanken daarvan op de opname gelegd`, lettersMiss:'niet duidelijk gevonden in de opname',
     vowelTitle:'Klinkerkaart — waar is je tong?',
     vowelLegend:'← voor in de mond · achter in de mond → | boven: mond dicht · onder: mond open',
     cls:{V:'Klinker',F:'Sis (stemloos)',Z:'Zoem (stemhebbend)',P:'Plof',N:'Neusklank',S:'Stilte',B:'Zachte plof',W:'Zwakke klinker',L:'Klinkerachtig',H:'Ademklank'},
@@ -408,6 +435,8 @@ function applyLang() {
   $('#micBtn').textContent = micOn ? L.micStop : L.micStart;
   $('#lang').value = lang;
   $('#voiceType').value = voiceSetting;
+  $('#lettersOptBox').title = L.lettersTip;
+  if (typeof renderLetters === 'function') renderLetters();
   const n = calib().length;
   $('#voiceType').title = voiceSetting === 'auto' && n >= 5 ? L.calibrated(n) : '';
   $('#guide').innerHTML = L.guide.map(([c, nm, d]) =>
@@ -618,11 +647,13 @@ function showPic(kind) {
   $('#playRow').classList.toggle('hidden', !shown);
   $('#picSwitch').classList.toggle('hidden', !(pics.example && pics.attempt) || kind === 'explore');
   $('#picExample').classList.toggle('on', kind === 'example'); $('#picAttempt').classList.toggle('on', kind === 'attempt');
+  renderLetters();
 }
 function forgetRecording(all) {
   stopPlayback(); shown = null; pinIdx = null; hoverIdx = null; pics.attempt = null;
   if (all) { pics.example = null; pics.explore = null; chartExample = []; }
   $('#playRow').classList.add('hidden'); $('#picSwitch').classList.add('hidden');
+  renderLetters();
 }
 const sampleToX = n => ((n - 440) / A.HOP - shown.a + 0.5) * shown.colW;
 const xToFrame = x => Math.max(shown.a, Math.min(shown.b, Math.floor(x / shown.colW) + shown.a));
@@ -691,6 +722,107 @@ spec.addEventListener('mousemove', e => {
   hoverIdx = xToFrame((e.clientX - r.left) / r.width * SW);
 });
 spec.addEventListener('mouseleave', () => { hoverIdx = null; });
+
+/* ---------- Letter rows under the picture ----------
+   1. letters heard: a neural phoneme recogniser (phonemes.js, opt-in: a one-time download), independent of the word;
+   2. the sounds of a known word (the example's word, or the word speech recognition heard) placed on the segments. */
+const LT = window.SpeechLetters;
+let lettersOn = store.get('st_letters', false), lettersErr = '', lettersProgress = null;
+const frameX = (pic, i) => (i - pic.a + 0.5) * pic.colW;                       // frame index -> picture x
+const pct = x => `${(100 * Math.max(0, Math.min(SW, x)) / SW).toFixed(2)}%`;
+function speechRange(pic) {   // samples to recognise: the speech, with 0.25 s around it
+  const segs = pic.an.segs;
+  if (!segs.length) return null;
+  return [440 + segs[0].a * A.HOP - 4000, 440 + segs[segs.length - 1].b * A.HOP + 4000];
+}
+async function recogniseLetters(pic) {
+  if (!lettersOn || !LT || pic.net || pic.netBusy) return;
+  const r = speechRange(pic);
+  if (!r) { pic.net = []; return renderLetters(); }
+  pic.netBusy = true; renderLetters();
+  try {
+    await startLetters();
+    pic.net = await LT.recognize(pic.x, pic.lang, r[0], r[1]);
+    lettersErr = '';
+  } catch (e) { lettersErr = e.message || String(e); }
+  pic.netBusy = false;
+  renderLetters();
+}
+async function startLetters() {
+  if (LT.ready()) return;
+  lettersProgress = 0; renderLetters();
+  try { await LT.load(p => { lettersProgress = p; renderLetters(); }); }
+  finally { lettersProgress = null; }
+}
+/* the sounds of word w placed on the detected segments (the same alignment as the scoring) */
+function wordLetters(pic, w) {
+  const segs = pic.an.segs, target = w.ph.map(p => ({ p, c: A.clsOf(p) }));
+  if (!segs.length) return [];
+  const match = A.align(target, segs), out = target.map((t, k) => ({ p: t.p, c: t.c, j: match[k] }));
+  // sounds without a segment of their own share a neighbouring vowel stretch, or the gap between their neighbours
+  for (let k = 0; k < out.length;) {
+    if (out[k].j >= 0) { out[k].a = segs[out[k].j].a; out[k].b = segs[out[k].j].b + 1; k++; continue; }
+    let e = k; while (e < out.length && out[e].j < 0) e++;
+    const L0 = k > 0 ? segs[out[k - 1].j] : null, R0 = e < out.length ? segs[out[e].j] : null;
+    let lo = L0 ? L0.b + 1 : Math.max(pic.a, (R0 ? R0.a : pic.b) - 6 * (e - k)), hi = R0 ? R0.a : Math.min(pic.b + 1, (L0 ? L0.b + 1 : pic.a) + 6 * (e - k));
+    let from = k, to = e, share = null;
+    if (hi - lo < 3 * (e - k)) {   // no room between the neighbours: split the neighbouring vowel (or any) segment
+      share = L0 && (L0.c === 'V' || !R0 || R0.c !== 'V') ? k - 1 : R0 ? e : null;
+      if (share != null) { const s = segs[out[share].j]; lo = s.a; hi = s.b + 1; from = Math.min(k, share); to = Math.max(e, share + 1); }
+    }
+    for (let q = from; q < to; q++) { out[q].a = lo + (hi - lo) * (q - from) / (to - from); out[q].b = lo + (hi - lo) * (q - from + 1) / (to - from); }
+    k = Math.max(e, to);   // (a shared right neighbour is placed already)
+  }
+  return out;
+}
+/* which list word did speech recognition hear? */
+function heardListWord(text) {
+  if (!text) return null;
+  const toks = text.toLowerCase().split(/\s+/);
+  return D.WORDS[lang].find(w => w.w.toLowerCase() === text.toLowerCase()) || D.WORDS[lang].find(w => toks.includes(w.w.toLowerCase())) || null;
+}
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function renderLetters() {
+  const box = $('#letters'), pic = shown;
+  let net = '', word = '';
+  if (pic && lettersOn) {
+    if (lettersProgress != null) net = `<span class="msg">${lettersProgress ? L.lettersLoading(Math.round(100 * lettersProgress)) : L.lettersStarting}</span>`;
+    else if (pic.netBusy) net = `<span class="msg">${L.lettersBusy}</span>`;
+    else if (lettersErr && !pic.net) net = `<span class="msg">${esc(L.lettersFail(lettersErr))}</span>`;
+    else if (pic.net && !pic.net.length) net = `<span class="msg">${L.lettersNone}</span>`;
+    else if (pic.net) {
+      let last = -1e9;
+      for (const q of pic.net) {
+        const i = (q.t * A.FS - 440) / A.HOP, j = pic.segOf[Math.max(0, Math.min(pic.segOf.length - 1, Math.round(i)))];
+        let x = frameX(pic, i); if (x < last + 16) x = last + 16; last = x;   // keep neighbouring letters apart
+        const c = j >= 0 ? pic.an.segs[j].c : 'S';
+        net += `<span class="lt" style="left:${pct(x)};color:${c === 'S' ? 'var(--text)' : COL[c]}" title="${esc(q.raw)}">${esc(q.ph)}</span>`;
+      }
+    }
+    if (net) net += `<span class="cap">${L.lettersNetCap}</span>`;
+  }
+  if (pic && pic.word) {
+    for (const q of wordLetters(pic, pic.word)) {
+      const x0 = frameX(pic, q.a - 0.5), x1 = frameX(pic, q.b - 0.5), cc = q.c === 'W' ? 'V' : q.c === 'B' ? 'P' : q.c === 'L' || q.c === 'H' ? 'N' : q.c;
+      word += `<span class="ls${q.j < 0 ? ' miss' : ''}" style="left:${pct(x0)};width:calc(${pct(x1 - x0)} - 2px);background:${COL[cc] || 'var(--line)'}"${q.j < 0 ? ` title="${L.lettersMiss}"` : ''}>${esc(q.p.split('/')[0])}</span>`;
+    }
+    word += `<span class="cap">${pic.wordHeard ? L.lettersWordCapRec(esc(pic.wordHeard)) : L.lettersWordCap(esc(pic.word.w))}</span>`;
+  }
+  $('#ltNet').innerHTML = net; $('#ltWord').innerHTML = word;
+  box.classList.toggle('hidden', !net && !word);
+}
+/* a new picture: remember its language and word, then recognise its letters (when switched on) */
+function lettersFor(pic, word, heard) {
+  pic.lang = lang; pic.word = word || null; pic.wordHeard = heard || null;
+  recogniseLetters(pic);
+}
+$('#showLetters').checked = lettersOn;
+$('#showLetters').onchange = async e => {
+  if (e.target.checked && !(await LT.isCached()) && !confirm(L.lettersAsk)) { e.target.checked = false; return; }
+  lettersOn = e.target.checked; lettersErr = ''; store.set('st_letters', lettersOn);
+  if (lettersOn) for (const k in pics) if (pics[k]) recogniseLetters(pics[k]);
+  renderLetters();
+};
 
 const PIN = '#ffd23f';
 let lastDrawKey = '';
@@ -900,6 +1032,7 @@ function analyseExplore() {
   const an = A.analyzeRecording(x, A.FS, true);
   pending = []; trail = [];
   pics.explore = makePic(x, an, 'explore', chartScale());
+  lettersFor(pics.explore, null);
   showPic('explore');
   drawVowelChart();
 }
@@ -971,6 +1104,7 @@ async function loadExample() {
       .map(v => ({ f1: v.meas[0] * chartScale() / sc, f2: v.meas[1] * chartScale() / sc, p: v.p }));
     live = false; pending = [];
     pics.example = makePic(x, an, 'example', sc);
+    lettersFor(pics.example, w);
     showPic('example');
     drawVowelChart();
     $('#status').textContent = L.exampleShown;
@@ -1057,6 +1191,8 @@ function finish(rec) {
   saveBest(w.w, res.total);
   pending = [];
   pics.attempt = makePic(x, an, 'attempt', typeof res.scale === 'number' ? res.scale : chartScale());
+  const hw = heardListWord(rs.first);
+  lettersFor(pics.attempt, hw, hw ? rs.first : null);
   showPic('attempt');
   renderResult(res, rs, w, pics.attempt.guesses);
 }

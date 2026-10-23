@@ -18,7 +18,12 @@ Everything you say is shown **visually**, in Dutch or English.
   - a ✓ / ~ / ✗ per sound, concrete tips ("open your mouth a bit more", "the k was very soft…")
   - your vowel on the vowel map next to the target
   - the recording as a picture with the detected sounds, and playback (normal or slow) with a moving marker
-- **Example voice** – 🔊 plays a natural male or female voice saying the word and analyses it the same way,
+- **Letters** (optional, tick *Letters* above the picture) – two rows under the sound picture, on the same time axis:
+  - the letters (IPA) a neural phoneme recogniser hears, independent of the word, so you can read back what
+    was said. The network runs in the browser; it is downloaded once (about 320 MB) and kept by the browser
+  - the sounds of the word the browser's speech recognition heard (or the example's word), placed on the detected
+    sounds; a dashed letter was not clearly found. Where the two rows differ, the pronunciation differed
+- **Example voice** – 🔊 plays a synthesised male or female voice saying the word and analyses it the same way,
   so you can compare its picture and vowel position (◆) with your own attempt (★)
 - **Detected sounds in IPA** under the spectrogram (live and in recordings), guessed from the sound alone,
   before matching to the word; F1/F2 lines drawn in the spectrogram
@@ -29,8 +34,8 @@ Everything you say is shown **visually**, in Dutch or English.
 - With voice setting **Automatic**, the app learns the size of your vocal tract from your attempts,
   so the vowel targets fit your voice.
 
-Privacy: the sound analysis runs entirely in your browser. Only the "word recognised" part uses the
-browser's online speech recognition (Google in Chrome, Microsoft in Edge).
+Privacy: the sound analysis runs entirely in your browser, the letter recogniser too. Only the "word recognised"
+part uses the browser's online speech recognition (Google in Chrome, Microsoft in Edge).
 
 This is a practice aid, not a replacement for your speech therapist.
 
@@ -104,3 +109,7 @@ openly licensed speech:
 | `ref/en/female/` | en_GB-vctk-medium, speaker p228 | [CSTR VCTK Corpus](https://doi.org/10.7488/ds/2645) (University of Edinburgh) | CC BY 4.0 |
 
 The English recordings may be reused under CC BY 4.0, crediting the CSTR VCTK Corpus; the Dutch ones are CC0.
+
+The letter recogniser (`phonemes.js`) downloads [wav2vec2-lv-60-espeak-cv-ft](https://huggingface.co/facebook/wav2vec2-lv-60-espeak-cv-ft)
+(Facebook AI, Apache-2.0) in the ONNX version of [onnx-community](https://huggingface.co/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX),
+and runs it with [onnxruntime-web](https://github.com/microsoft/onnxruntime) (MIT). Neither is included in this repository.
