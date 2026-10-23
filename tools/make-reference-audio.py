@@ -79,7 +79,7 @@ def main():
                     continue
                 os.makedirs(os.path.dirname(out), exist_ok=True)
                 with open(out, 'wb') as f:
-                    f.write(mp3(*synth(voice, speaker, w)))
+                    f.write(mp3(*synth(voice, speaker, w + '.')))   # without the full stop Piper slurs the last sound
                 n += 1
             print(lang, sex, len(ws), 'words')
     print(n, 'files written')
