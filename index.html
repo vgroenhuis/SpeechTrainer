@@ -253,7 +253,7 @@ const T = {
     cls:{V:'Vowel',F:'Hiss (voiceless)',Z:'Buzz (voiced hiss)',P:'Burst',N:'Hum',S:'Silence',B:'Soft burst',W:'Weak vowel',L:'Vowel-like',H:'Breath'},
     clsSub:{V:'voice on, mouth open',F:'air only, no voice',Z:'air + voice',P:'short pop of air',N:'air through the nose',S:'',B:''},
     sHiss:'sharp “s”', shHiss:'“sh” or “f”', burstSub:'p / t / k', humSub:'m / n / ng', buzzSub:'z / v', shF:'sh/f',
-    vowelLike:'sounds like', guide:[
+    soundsLike:'sounds like', guide:[
       ['V','Vowel','Voice ON, mouth open, air flows freely: a, e, i, o, u. Shows as a dot on the vowel map.'],
       ['F','Hiss','Voice OFF, air pushed through a narrow gap: s, sh, f. Shows as noise high up in the picture.'],
       ['Z','Buzz','Hiss + voice ON: z, v. Noise high up plus stripes low down.'],
@@ -328,7 +328,7 @@ const T = {
     cls:{V:'Klinker',F:'Sis (stemloos)',Z:'Zoem (stemhebbend)',P:'Plof',N:'Neusklank',S:'Stilte',B:'Zachte plof',W:'Zwakke klinker',L:'Klinkerachtig',H:'Ademklank'},
     clsSub:{V:'stem aan, mond open',F:'alleen lucht, geen stem',Z:'lucht + stem',P:'kort luchtstootje',N:'lucht door de neus',S:'',B:''},
     sHiss:'scherpe “s”', shHiss:'“sj” of “f”', burstSub:'p / t / k', humSub:'m / n / ng', buzzSub:'z / v', shF:'sj/f',
-    vowelLike:'lijkt op', guide:[
+    soundsLike:'lijkt op', guide:[
       ['V','Klinker','Stem AAN, mond open, lucht stroomt vrij: a, e, i, o, oe. Zie je als stip op de klinkerkaart.'],
       ['F','Sis','Stem UIT, lucht door een smalle opening: s, sj, f, ch. Ruis hoog in het beeld.'],
       ['Z','Zoem','Sis + stem AAN: z, v. Ruis hoog plus strepen onderin.'],
@@ -781,7 +781,7 @@ function updateNow({ f, drawC, now }) {
   const k = now < holdUntil ? lastCls : 'S';
   let sub = L.clsSub[k], sym = '';
   const fm = smoothedFormants();
-  if (k === 'V' && fm) { const n = A.nearestVowel(lang, fm[0], fm[1], chartScale(), D.VSET[lang]); sub = L.vowelLike + ' ' + vLabel(n.v); sym = n.v; }
+  if (k === 'V' && fm) { const n = A.nearestVowel(lang, fm[0], fm[1], chartScale(), D.VSET[lang]); sub = L.soundsLike + ' ' + vLabel(n.v); sym = n.v; }
   if (k === 'F') { sym = A.guessSound([f], { c: 'F', a: 0, b: 0 }, lang, 1); sub = sym === 's' ? L.sHiss : L.shHiss; }
   if (k === 'P') sub = L.burstSub;
   if (k === 'N') sub = L.humSub;
