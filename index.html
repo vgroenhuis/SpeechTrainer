@@ -947,7 +947,7 @@ function showWord() {
 $('#cat').onchange = () => { idx = 0; buildList(); showWord(); };
 $('#prevBtn').onclick = () => { idx = (idx - 1 + list.length) % list.length; showWord(); };
 $('#nextBtn').onclick = () => { idx = (idx + 1) % list.length; showWord(); };
-/* Example: a recorded natural voice (ref/<lang>/<male|female>/<word>.mp3), analysed exactly like your own attempt.
+/* Example: a synthesised example voice (ref/<lang>/<male|female>/<word>.mp3), analysed exactly like your own attempt.
    Falls back to the browser's speech synthesis (without analysis) when the file is missing. */
 const EX_SCALE = { male: 1, female: 1.18 };
 $('#exVoice').value = store.get('st_exvoice', 'female');

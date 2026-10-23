@@ -3,3 +3,5 @@ test/audio/
 # Local editor / assistant settings
 .claude/
 __pycache__/
+# Piper voices downloaded by tools/make-reference-audio.py
+tools/voices/

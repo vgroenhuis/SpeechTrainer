@@ -72,7 +72,8 @@ node test\run-tests.js --dump kat --voice Maarten-normal   # frame-by-frame feat
 
 `test/explore*.js` print the statistics used to choose the thresholds (`explore-guess.js` for the IPA labels).
 
-The example recordings in `ref/` come from `python tools/make-reference-audio.py` (Edge TTS).
+The example recordings in `ref/` come from `python tools/make-reference-audio.py` (Piper voices, see License).
+The test recordings are made with Windows and Edge voices and are for testing only, so `test/audio/` is not in git.
 
 Results (room noise):
 
@@ -87,3 +88,19 @@ counts every vowel of every word, including unstressed ones in longer words.)
 Known limits: unaspirated Dutch p/t/k at the start of a word are hard to see in the sound, so they are judged
 leniently ("~"). Neighbouring vowels (Dutch o/ɔ, i/ɪ/e) are hard to tell apart from a single measurement.
 Word recognition in the browser covers part of this.
+
+## License
+
+The code is MIT licensed (see `LICENSE`).
+
+The example recordings in `ref/` are synthesised with [Piper](https://github.com/rhasspy/piper) voices trained on
+openly licensed speech:
+
+| Recordings | Piper voice | Trained on | License |
+|---|---|---|---|
+| `ref/nl/male/` | nl_NL-pim-medium | Pim | CC0 |
+| `ref/nl/female/` | nl_BE-nathalie-medium (Belgian Dutch) | Nathalie | CC0 |
+| `ref/en/male/` | en_GB-vctk-medium, speaker p226 | [CSTR VCTK Corpus](https://doi.org/10.7488/ds/2645) (University of Edinburgh) | CC BY 4.0 |
+| `ref/en/female/` | en_GB-vctk-medium, speaker p228 | [CSTR VCTK Corpus](https://doi.org/10.7488/ds/2645) (University of Edinburgh) | CC BY 4.0 |
+
+The English recordings may be reused under CC BY 4.0, crediting the CSTR VCTK Corpus; the Dutch ones are CC0.
